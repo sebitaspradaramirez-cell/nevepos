@@ -34,6 +34,9 @@ class ModalManager {
                 document.head.appendChild(style);
             }
         }
+        if (!document.getElementById('modal-container')) {
+            this.overlay.innerHTML = `<div class="modal-container" id="modal-container"></div>`;
+        }
         this.container = document.getElementById('modal-container');
         this.currentOnClose = null;
 

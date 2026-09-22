@@ -54,7 +54,12 @@ const fetchUserRole = async (userId, email) => {
             .eq('auth_user_id', userId)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === 'PGRST116') {
+                throw new Error('El usuario de Supabase no está vinculado en la tabla usuarios. Ejecuta el INSERT con su auth_user_id.');
+            }
+            throw error;
+        }
 
         currentUser = {
             id: data.id,
@@ -68,7 +73,7 @@ const fetchUserRole = async (userId, email) => {
         return currentUser;
     } catch (err) {
         console.error('Error fetching user role:', err);
-        return null;
+        throw err;
     }
 };
 
@@ -91,7 +96,11 @@ export const login = async (email, password) => {
 
         if (error) throw error;
 
-        return await fetchUserRole(data.user.id, data.user.email);
+        const user = await fetchUserRole(data.user.id, data.user.email);
+        if (!user) {
+            throw new Error('No se pudo cargar el perfil del usuario.');
+        }
+        return user;
     } catch (error) {
         throw error;
     }
