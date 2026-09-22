@@ -16,7 +16,15 @@ if (!client) {
             getSession: async () => ({ data: { session: null }, error: null }),
             signInWithPassword: async () => { throw new Error('Supabase no está configurado. Ingrese con Modo Demo / Offline.'); },
             signOut: async () => ({ error: null }),
-            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+            mfa: {
+                getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null }),
+                listFactors: async () => ({ data: { totp: [] }, error: null }),
+                enroll: async () => ({ data: null, error: new Error('Supabase no está configurado.') }),
+                challenge: async () => ({ data: null, error: new Error('Supabase no está configurado.') }),
+                verify: async () => ({ error: new Error('Supabase no está configurado.') }),
+                unenroll: async () => ({ error: new Error('Supabase no está configurado.') })
+            }
         },
         from: () => ({
             select: () => ({

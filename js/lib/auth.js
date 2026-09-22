@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 
 let currentUser = null;
+let pendingMfa = null;
 const SESSION_KEY = 'nevepos_user';
 const listeners = new Set();
 
@@ -28,8 +29,10 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         sessionStorage.removeItem(SESSION_KEY);
         notifyListeners();
     } else if (session?.user && !currentUser) {
-        // Just token refresh or initial load, we might need to fetch the role if missing
-        await fetchUserRole(session.user.id, session.user.email);
+        const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assurance?.currentLevel === 'aal2' || assurance?.nextLevel !== 'aal2') {
+            await fetchUserRole(session.user.id, session.user.email);
+        }
     }
 });
 
@@ -96,6 +99,19 @@ export const login = async (email, password) => {
 
         if (error) throw error;
 
+        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+        if (factorsError) throw factorsError;
+
+        const verifiedFactor = factorsData?.totp?.find(factor => factor.status === 'verified');
+        if (verifiedFactor) {
+            const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+                factorId: verifiedFactor.id
+            });
+            if (challengeError) throw challengeError;
+            pendingMfa = { factorId: verifiedFactor.id, challengeId: challenge.id, email };
+            return { requiresMfa: true };
+        }
+
         const user = await fetchUserRole(data.user.id, data.user.email);
         if (!user) {
             throw new Error('No se pudo cargar el perfil del usuario.');
@@ -104,6 +120,52 @@ export const login = async (email, password) => {
     } catch (error) {
         throw error;
     }
+};
+
+export const verifyMfaLogin = async (code) => {
+    if (!pendingMfa) throw new Error('No hay una verificación 2FA pendiente.');
+    const { error } = await supabase.auth.mfa.verify({
+        factorId: pendingMfa.factorId,
+        challengeId: pendingMfa.challengeId,
+        code: code.trim()
+    });
+    if (error) throw error;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = await fetchUserRole(sessionData.session.user.id, sessionData.session.user.email);
+    pendingMfa = null;
+    return user;
+};
+
+export const enrollMfa = async (friendlyName = 'NevePOS') => {
+    const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName
+    });
+    if (error) throw error;
+    return data;
+};
+
+export const verifyMfaEnrollment = async (factorId, code) => {
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+    if (challengeError) throw challengeError;
+    const { error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: code.trim()
+    });
+    if (error) throw error;
+};
+
+export const listMfaFactors = async () => {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) throw error;
+    return data?.totp || [];
+};
+
+export const unenrollMfa = async (factorId) => {
+    const { error } = await supabase.auth.mfa.unenroll({ factorId });
+    if (error) throw error;
 };
 
 export const logout = async () => {
@@ -188,6 +250,11 @@ export const Auth = {
     requirePermission,
     onAuthStateChange,
     setDemoUser,
+    verifyMfaLogin,
+    enrollMfa,
+    verifyMfaEnrollment,
+    listMfaFactors,
+    unenrollMfa,
     getSession: async () => currentUser
 };
 
