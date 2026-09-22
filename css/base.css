@@ -1,0 +1,101 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--color-gray-50);
+    color: var(--color-gray-800);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-gray-900);
+}
+
+h1 { font-size: var(--font-size-3xl); }
+h2 { font-size: var(--font-size-2xl); }
+h3 { font-size: var(--font-size-xl); }
+h4 { font-size: var(--font-size-lg); }
+h5 { font-size: var(--font-size-base); }
+h6 { font-size: var(--font-size-sm); }
+
+p {
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+/* Resets */
+button {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Print styles */
+@media print {
+    #sidebar, #app-header, .toast-container, .modal-overlay {
+        display: none !important;
+    }
+    
+    #main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: var(--color-white);
+    }
+    
+    body {
+        background-color: var(--color-white);
+    }
+    
+    .app-content {
+        padding: 0 !important;
+    }
+}

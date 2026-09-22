@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NevePOS - Punto de Venta</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2563EB">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="NevePOS">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- CSS Files (Order matters) -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages/pos.css">
+    <link rel="stylesheet" href="css/pages/inventario.css">
+    <link rel="stylesheet" href="css/pages/reportes.css">
+    <link rel="stylesheet" href="css/pages/admin.css">
+
+    <!-- CDN Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18/dist/xlsx.full.min.js"></script>
+
+    <!-- App Module -->
+    <script type="module" src="js/app.js"></script>
+
+    <style>
+        /* Initial Loading Spinner */
+        #initial-loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--color-gray-50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+        .initial-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--color-gray-200);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div style="padding: 20px; text-align: center; color: red;">
+            Esta aplicación requiere JavaScript para funcionar correctamente. Por favor, actívalo en tu navegador.
+        </div>
+    </noscript>
+
+    <div id="initial-loader">
+        <div class="initial-spinner"></div>
+    </div>
+
+    <div id="app">
+        <aside id="sidebar" class="sidebar">
+            <!-- sidebar rendered by JS -->
+        </aside>
+        <main id="main">
+            <header id="app-header">
+                <!-- header rendered by JS -->
+            </header>
+            <div id="app-content" class="app-content">
+                <!-- pages rendered here -->
+            </div>
+        </main>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW registration failed:', err));
+        }
+        
+        // Hide initial loader when DOM is ready or after brief timeout safeguard
+        const hideLoader = () => {
+            const loader = document.getElementById('initial-loader');
+            if (loader) loader.style.display = 'none';
+        };
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(hideLoader, 500);
+        });
+        window.addEventListener('load', hideLoader);
+    </script>
+
+</body>
+</html>
