@@ -3,7 +3,7 @@ import { ProductosService } from '../services/productos.service.js';
 import { ProveedoresService } from '../services/proveedores.service.js';
 import { Auth } from '../lib/auth.js';
 import { Toast } from '../lib/toast.js';
-import { formatDate } from '../lib/utils.js';
+import { escapeHtml, formatCOP, formatDate } from '../lib/utils.js';
 
 export class InventarioPage {
   constructor(container) {
@@ -24,6 +24,28 @@ export class InventarioPage {
 
       <div class="row" id="stock-alerts">
         <!-- Stock alerts will be injected here -->
+      </div>
+
+      <div class="card mt-4">
+        <h3>Productos solo inventario</h3>
+        <p>Estos productos no aparecen en Caja. Puedes editar sus datos y existencias aquí.</p>
+        <div class="table-responsive">
+          <table class="table table-striped" id="productos-solo-inventario-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Código / SKU</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Stock mínimo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6">Cargando productos...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="card mt-4">
@@ -82,8 +104,9 @@ export class InventarioPage {
 
       <div id="modal-producto-inventario" class="modal" style="display: none; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; background: rgba(20, 30, 40, 0.48); padding: 16px; overflow-y: auto; max-width: none; max-height: none; border-radius: 0; box-shadow: none;">
         <div class="modal-content" style="width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 8px; background: white;">
-          <h3>Agregar producto al inventario</h3>
+          <h3 id="titulo-producto-inventario">Agregar producto al inventario</h3>
           <form id="form-producto-inventario">
+            <input type="hidden" id="inv-prod-id">
             <div class="form-group">
               <label>Nombre *</label>
               <input type="text" id="inv-prod-nombre" required class="form-control">
@@ -113,7 +136,7 @@ export class InventarioPage {
               <input type="number" id="inv-prod-precio-costo" min="0" value="0" class="form-control">
             </div>
             <div class="form-group">
-              <label>Stock inicial</label>
+              <label id="inv-prod-stock-label">Stock inicial</label>
               <input type="number" id="inv-prod-stock" min="0" value="0" class="form-control">
             </div>
             <div class="form-group">
@@ -136,7 +159,7 @@ export class InventarioPage {
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
               <button type="button" class="btn btn-secondary" id="btn-cancelar-producto-inventario">Cancelar</button>
-              <button type="submit" class="btn btn-primary">Guardar producto</button>
+              <button type="submit" id="btn-guardar-producto-inventario" class="btn btn-primary">Guardar producto</button>
             </div>
           </form>
         </div>
@@ -144,7 +167,8 @@ export class InventarioPage {
     `;
 
     this.bindEvents();
-    this.loadProductOptions();
+    await this.loadProductOptions();
+    this.loadInventoryOnlyProducts();
     this.loadAlerts();
     this.loadMovimientos();
   }
@@ -166,6 +190,69 @@ export class InventarioPage {
       suppliers.forEach(supplier => supplierSelect.add(new Option(supplier.nombre, supplier.id)));
     } catch (error) {
       console.error('Error cargando proveedores:', error);
+    }
+  }
+
+  async loadInventoryOnlyProducts() {
+    const tbody = document.querySelector('#productos-solo-inventario-table tbody');
+    try {
+      const { data } = await ProductosService.getAll({ pageSize: 1000 });
+      const products = data.filter(product => product.disponible_en_caja === false);
+
+      if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">No hay productos exclusivos de inventario.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = products.map(product => `
+        <tr>
+          <td>${escapeHtml(product.nombre)}</td>
+          <td>${escapeHtml([product.codigo_barras, product.sku].filter(Boolean).join(' / ') || '-')}</td>
+          <td>${formatCOP(product.precio_venta)}</td>
+          <td>${product.stock_actual}</td>
+          <td>${product.stock_minimo}</td>
+          <td><button type="button" class="btn btn-sm btn-info btn-editar-producto-inventario" data-id="${product.id}">Editar</button></td>
+        </tr>
+      `).join('');
+    } catch (error) {
+      console.error('Error cargando productos de inventario:', error);
+      tbody.innerHTML = '<tr><td colspan="6">Error cargando productos de inventario.</td></tr>';
+    }
+  }
+
+  resetInventoryProductForm() {
+    document.getElementById('form-producto-inventario').reset();
+    document.getElementById('inv-prod-id').value = '';
+    document.getElementById('titulo-producto-inventario').textContent = 'Agregar producto al inventario';
+    document.getElementById('inv-prod-stock-label').textContent = 'Stock inicial';
+    document.getElementById('btn-guardar-producto-inventario').textContent = 'Guardar producto';
+  }
+
+  async editInventoryProduct(id) {
+    try {
+      const product = await ProductosService.getById(id);
+      if (!product) throw new Error('No se encontró el producto');
+
+      this.resetInventoryProductForm();
+      document.getElementById('inv-prod-id').value = product.id;
+      document.getElementById('inv-prod-nombre').value = product.nombre || '';
+      document.getElementById('inv-prod-codigo').value = product.codigo_barras || '';
+      document.getElementById('inv-prod-sku').value = product.sku || '';
+      document.getElementById('inv-prod-categoria').value = product.categoria_id || '';
+      document.getElementById('inv-prod-proveedor').value = product.proveedor_id || '';
+      document.getElementById('inv-prod-precio-venta').value = product.precio_venta ?? 0;
+      document.getElementById('inv-prod-precio-costo').value = product.precio_costo ?? 0;
+      document.getElementById('inv-prod-stock').value = product.stock_actual ?? 0;
+      document.getElementById('inv-prod-stock-minimo').value = product.stock_minimo ?? 5;
+      document.getElementById('inv-prod-unidad').value = product.unidad_medida || 'unidad';
+      document.getElementById('inv-prod-disponible-caja').checked = product.disponible_en_caja !== false;
+      document.getElementById('titulo-producto-inventario').textContent = 'Editar producto de inventario';
+      document.getElementById('inv-prod-stock-label').textContent = 'Stock actual';
+      document.getElementById('btn-guardar-producto-inventario').textContent = 'Guardar cambios';
+      document.getElementById('modal-producto-inventario').style.display = 'flex';
+      document.getElementById('inv-prod-nombre').focus();
+    } catch (error) {
+      Toast.error(error.message || 'Error cargando el producto');
     }
   }
 
@@ -232,14 +319,19 @@ export class InventarioPage {
     const productForm = document.getElementById('form-producto-inventario');
 
     document.getElementById('btn-agregar-producto-inventario').addEventListener('click', () => {
-      productForm.reset();
+      this.resetInventoryProductForm();
       productModal.style.display = 'flex';
       document.getElementById('inv-prod-nombre').focus();
     });
 
     document.getElementById('btn-cancelar-producto-inventario').addEventListener('click', () => {
       productModal.style.display = 'none';
-      productForm.reset();
+      this.resetInventoryProductForm();
+    });
+
+    document.querySelector('#productos-solo-inventario-table tbody').addEventListener('click', (event) => {
+      const button = event.target.closest('.btn-editar-producto-inventario');
+      if (button) this.editInventoryProduct(button.dataset.id);
     });
 
     productForm.addEventListener('submit', async (event) => {
@@ -260,13 +352,33 @@ export class InventarioPage {
       };
 
       try {
-        await ProductosService.create(data);
+        const productId = document.getElementById('inv-prod-id').value;
+        if (productId) {
+          const currentProduct = await ProductosService.getById(productId);
+          if (!currentProduct) throw new Error('No se encontró el producto');
+
+          const { stock_actual: newStock, ...productData } = data;
+          if (newStock !== currentProduct.stock_actual) {
+            await InventarioService.registrarAjuste(
+              productId,
+              newStock,
+              'ajuste',
+              'Stock actualizado desde la edición de inventario'
+            );
+          }
+          await ProductosService.update(productId, productData);
+        } else {
+          await ProductosService.create(data);
+        }
+
         productModal.style.display = 'none';
-        productForm.reset();
-        Toast.success(data.disponible_en_caja
-          ? 'Producto agregado al inventario y disponible en Caja'
-          : 'Producto agregado al inventario; no aparece en Caja');
+        this.resetInventoryProductForm();
+        Toast.success(productId
+          ? (data.disponible_en_caja ? 'Producto actualizado y habilitado en Caja' : 'Producto de inventario actualizado')
+          : (data.disponible_en_caja ? 'Producto agregado al inventario y disponible en Caja' : 'Producto agregado al inventario; no aparece en Caja'));
+        this.loadInventoryOnlyProducts();
         this.loadAlerts();
+        this.loadMovimientos();
       } catch (error) {
         Toast.error(error.message || 'Error al agregar el producto');
       }
