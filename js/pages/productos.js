@@ -41,11 +41,12 @@ export class ProductosPage {
               <th>Precio Costo</th>
               <th>Stock</th>
               <th>Estado</th>
+              <th>Disponibilidad</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="8">Cargando...</td></tr>
+            <tr><td colspan="9">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -108,6 +109,11 @@ export class ProductosPage {
                 <input type="checkbox" id="prod-activo" checked> Activo
               </label>
             </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="prod-disponible-caja" checked> Disponible para vender en Caja
+              </label>
+            </div>
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
               <button type="submit" class="btn btn-primary">Guardar</button>
@@ -158,7 +164,7 @@ export class ProductosPage {
       
       tbody.innerHTML = '';
       if (res.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">No se encontraron productos.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9">No se encontraron productos.</td></tr>';
         return;
       }
 
@@ -175,6 +181,7 @@ export class ProductosPage {
           <td>${formatCOP(p.precio_costo)}</td>
           <td><span class="badge ${stockClass}">${p.stock_actual}</span></td>
           <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td><span class="badge ${p.disponible_en_caja !== false ? 'badge-success' : 'badge-warning'}">${p.disponible_en_caja !== false ? 'En Caja' : 'Solo inventario'}</span></td>
           <td>
             <button class="btn btn-sm btn-info btn-edit" data-id="\${p.id}">Editar</button>
             ${p.activo ? `<button class="btn btn-sm btn-danger btn-disable" data-id="${p.id}">Desactivar</button>` : ''}
@@ -185,7 +192,7 @@ export class ProductosPage {
     } catch (error) {
       console.error(error);
       Toast.error('Error cargando productos');
-      tbody.innerHTML = '<tr><td colspan="8">Error cargando datos.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9">Error cargando datos.</td></tr>';
     }
   }
 
@@ -261,6 +268,7 @@ export class ProductosPage {
         document.getElementById('prod-stock-minimo').value = p.stock_minimo || 5;
         document.getElementById('prod-unidad').value = p.unidad_medida || 'unidad';
         document.getElementById('prod-activo').checked = p.activo !== false;
+        document.getElementById('prod-disponible-caja').checked = p.disponible_en_caja !== false;
       } catch (e) {
         Toast.error('Error cargando el producto');
         return;
@@ -268,6 +276,7 @@ export class ProductosPage {
     } else {
       document.getElementById('modal-title').innerText = 'Nuevo Producto';
       document.getElementById('prod-activo').checked = true;
+      document.getElementById('prod-disponible-caja').checked = true;
     }
     
     modal.style.display = 'flex';
@@ -286,7 +295,8 @@ export class ProductosPage {
       stock_actual: parseInt(document.getElementById('prod-stock').value, 10),
       stock_minimo: parseInt(document.getElementById('prod-stock-minimo').value, 10),
       unidad_medida: document.getElementById('prod-unidad').value,
-      activo: document.getElementById('prod-activo').checked
+      activo: document.getElementById('prod-activo').checked,
+      disponible_en_caja: document.getElementById('prod-disponible-caja').checked
     };
 
     try {

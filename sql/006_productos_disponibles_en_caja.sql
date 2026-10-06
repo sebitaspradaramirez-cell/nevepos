@@ -1,0 +1,2 @@
+ALTER TABLE productos
+ADD COLUMN IF NOT EXISTS disponible_en_caja BOOLEAN NOT NULL DEFAULT true;

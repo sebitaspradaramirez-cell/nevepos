@@ -56,6 +56,7 @@ CREATE TABLE productos (
     unidad_medida TEXT DEFAULT 'unidad',
     imagen_url TEXT,
     activo BOOLEAN DEFAULT true,
+    disponible_en_caja BOOLEAN NOT NULL DEFAULT true,
     variantes JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()

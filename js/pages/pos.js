@@ -157,7 +157,9 @@ const procesarVenta = async () => {
             renderCart();
             
             // Refresh products to show updated stock
-            allProducts = await db.productos.where('activo').equals(1).toArray();
+            allProducts = await db.productos
+                .filter(p => (p.activo === 1 || p.activo === true) && p.disponible_en_caja !== false)
+                .toArray();
             document.getElementById('pos-search').value = '';
             renderProducts(allProducts);
             document.getElementById('pos-search').focus();
@@ -251,7 +253,7 @@ const showReceipt = (venta, detalles, clientName, pagoCon, cambio) => {
 window.PosApp = {
     addToCart: (productoId) => {
         const producto = allProducts.find(p => p.id === productoId);
-        if (!producto) return;
+        if (!producto || producto.disponible_en_caja === false) return;
 
         const existing = cart.find(c => c.producto.id === productoId);
         const qty = existing ? existing.cantidad + 1 : 1;
@@ -372,7 +374,9 @@ export const PosPage = {
                 return;
             }
 
-            allProducts = await db.productos.filter(p => p.activo === 1 || p.activo === true).toArray();
+            allProducts = await db.productos
+                .filter(p => (p.activo === 1 || p.activo === true) && p.disponible_en_caja !== false)
+                .toArray();
             allCategories = await db.categorias.filter(c => c.activo === 1 || c.activo === true).toArray();
 
             

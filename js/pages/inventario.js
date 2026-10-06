@@ -1,5 +1,6 @@
 import { InventarioService } from '../services/inventario.service.js';
 import { ProductosService } from '../services/productos.service.js';
+import { ProveedoresService } from '../services/proveedores.service.js';
 import { Auth } from '../lib/auth.js';
 import { Toast } from '../lib/toast.js';
 import { formatDate } from '../lib/utils.js';
@@ -18,6 +19,7 @@ export class InventarioPage {
     this.container.innerHTML = `
       <div class="page-header">
         <h2>Control de Inventario</h2>
+        <button id="btn-agregar-producto-inventario" class="btn btn-primary">+ Agregar producto al inventario</button>
       </div>
 
       <div class="row" id="stock-alerts">
@@ -77,11 +79,94 @@ export class InventarioPage {
           </table>
         </div>
       </div>
+
+      <div id="modal-producto-inventario" class="modal" style="display: none; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; background: rgba(20, 30, 40, 0.48); padding: 16px; overflow-y: auto; max-width: none; max-height: none; border-radius: 0; box-shadow: none;">
+        <div class="modal-content" style="width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-sizing: border-box; padding: 24px; border-radius: 8px; background: white;">
+          <h3>Agregar producto al inventario</h3>
+          <form id="form-producto-inventario">
+            <div class="form-group">
+              <label>Nombre *</label>
+              <input type="text" id="inv-prod-nombre" required class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Código de barras</label>
+              <input type="text" id="inv-prod-codigo" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>SKU</label>
+              <input type="text" id="inv-prod-sku" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Categoría</label>
+              <select id="inv-prod-categoria" class="form-control"></select>
+            </div>
+            <div class="form-group">
+              <label>Proveedor</label>
+              <select id="inv-prod-proveedor" class="form-control"></select>
+            </div>
+            <div class="form-group">
+              <label>Precio de venta</label>
+              <input type="number" id="inv-prod-precio-venta" min="0" value="0" required class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Precio de costo</label>
+              <input type="number" id="inv-prod-precio-costo" min="0" value="0" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Stock inicial</label>
+              <input type="number" id="inv-prod-stock" min="0" value="0" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Stock mínimo</label>
+              <input type="number" id="inv-prod-stock-minimo" min="0" value="5" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Unidad de medida</label>
+              <select id="inv-prod-unidad" class="form-control">
+                <option value="unidad">Unidad</option>
+                <option value="caja">Caja</option>
+                <option value="resma">Resma</option>
+                <option value="paquete">Paquete</option>
+                <option value="metro">Metro</option>
+                <option value="rollo">Rollo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="inv-prod-disponible-caja"> Disponible para vender en Caja</label>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+              <button type="button" class="btn btn-secondary" id="btn-cancelar-producto-inventario">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Guardar producto</button>
+            </div>
+          </form>
+        </div>
+      </div>
     `;
 
     this.bindEvents();
+    this.loadProductOptions();
     this.loadAlerts();
     this.loadMovimientos();
+  }
+
+  async loadProductOptions() {
+    try {
+      const categories = await ProductosService.getCategories();
+      const categorySelect = document.getElementById('inv-prod-categoria');
+      categorySelect.replaceChildren(new Option('Sin categoría', ''));
+      categories.forEach(category => categorySelect.add(new Option(category.nombre, category.id)));
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+    }
+
+    try {
+      const { data: suppliers } = await ProveedoresService.getAll({ activo: true, pageSize: 100 });
+      const supplierSelect = document.getElementById('inv-prod-proveedor');
+      supplierSelect.replaceChildren(new Option('Sin proveedor', ''));
+      suppliers.forEach(supplier => supplierSelect.add(new Option(supplier.nombre, supplier.id)));
+    } catch (error) {
+      console.error('Error cargando proveedores:', error);
+    }
   }
 
   async loadAlerts() {
@@ -143,6 +228,50 @@ export class InventarioPage {
   }
 
   bindEvents() {
+    const productModal = document.getElementById('modal-producto-inventario');
+    const productForm = document.getElementById('form-producto-inventario');
+
+    document.getElementById('btn-agregar-producto-inventario').addEventListener('click', () => {
+      productForm.reset();
+      productModal.style.display = 'flex';
+      document.getElementById('inv-prod-nombre').focus();
+    });
+
+    document.getElementById('btn-cancelar-producto-inventario').addEventListener('click', () => {
+      productModal.style.display = 'none';
+      productForm.reset();
+    });
+
+    productForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = {
+        nombre: document.getElementById('inv-prod-nombre').value.trim(),
+        codigo_barras: document.getElementById('inv-prod-codigo').value.trim() || null,
+        sku: document.getElementById('inv-prod-sku').value.trim() || null,
+        categoria_id: document.getElementById('inv-prod-categoria').value || null,
+        proveedor_id: document.getElementById('inv-prod-proveedor').value || null,
+        precio_venta: Number(document.getElementById('inv-prod-precio-venta').value),
+        precio_costo: Number(document.getElementById('inv-prod-precio-costo').value) || 0,
+        stock_actual: Number.parseInt(document.getElementById('inv-prod-stock').value, 10) || 0,
+        stock_minimo: Number.parseInt(document.getElementById('inv-prod-stock-minimo').value, 10) || 0,
+        unidad_medida: document.getElementById('inv-prod-unidad').value,
+        activo: true,
+        disponible_en_caja: document.getElementById('inv-prod-disponible-caja').checked
+      };
+
+      try {
+        await ProductosService.create(data);
+        productModal.style.display = 'none';
+        productForm.reset();
+        Toast.success(data.disponible_en_caja
+          ? 'Producto agregado al inventario y disponible en Caja'
+          : 'Producto agregado al inventario; no aparece en Caja');
+        this.loadAlerts();
+      } catch (error) {
+        Toast.error(error.message || 'Error al agregar el producto');
+      }
+    });
+
     const searchInput = document.getElementById('ajuste-producto-search');
     const searchResults = document.getElementById('ajuste-producto-results');
     const idInput = document.getElementById('ajuste-producto-id');

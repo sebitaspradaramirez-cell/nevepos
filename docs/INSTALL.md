@@ -27,6 +27,7 @@ Este documento describe paso a paso cómo instalar, configurar y desplegar el si
    - Ejecuta `sql/003_functions.sql`. (Funciones de negocio y RPC)
    - Ejecuta `sql/004_triggers.sql`. (Triggers automáticos)
    - Ejecuta `sql/005_seed.sql`. (Datos iniciales por defecto, como roles básicos)
+    - En una base ya existente, ejecuta `sql/006_productos_disponibles_en_caja.sql` para agregar el control de disponibilidad en Caja.
 4. Para verificar, ve a la sección **Table Editor** y comprueba que todas las tablas existan (productos, ventas, usuarios, etc.).
 
 ---
