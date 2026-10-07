@@ -183,7 +183,7 @@ export class ProductosPage {
           <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
           <td><span class="badge ${p.disponible_en_caja !== false ? 'badge-success' : 'badge-warning'}">${p.disponible_en_caja !== false ? 'En Caja' : 'Solo inventario'}</span></td>
           <td>
-            <button class="btn btn-sm btn-info btn-edit" data-id="\${p.id}">Editar</button>
+            <button class="btn btn-sm btn-info btn-edit" data-id="${p.id}">Editar</button>
             ${p.activo ? `<button class="btn btn-sm btn-danger btn-disable" data-id="${p.id}">Desactivar</button>` : ''}
           </td>
         `;
