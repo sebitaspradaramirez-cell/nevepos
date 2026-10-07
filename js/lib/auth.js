@@ -3,13 +3,59 @@ import { supabase } from './supabase.js';
 let currentUser = null;
 let pendingMfa = null;
 const SESSION_KEY = 'nevepos_user';
+const OWNER_EMAIL = 'natalypradaramirez@gmail.com';
+const DEMO_EMAIL = 'admin@nevepos.local';
+const ADMIN_PERMISSIONS = {
+    pos: true,
+    caja: true,
+    productos: true,
+    inventario: true,
+    clientes: true,
+    proveedores: true,
+    compras: true,
+    reportes: true,
+    usuarios: true,
+    configuracion: true,
+    caja_movimientos: true,
+    admin: true
+};
+const CASHIER_PERMISSIONS = {
+    pos: true,
+    caja: true,
+    productos: false,
+    inventario: false,
+    clientes: false,
+    proveedores: false,
+    compras: false,
+    reportes: false,
+    usuarios: false,
+    configuracion: false,
+    caja_movimientos: false,
+    admin: false
+};
 const listeners = new Set();
+
+const normalizeUserAccess = (user) => {
+    const email = String(user.email || '').trim().toLowerCase();
+    const localDemoAdmin = email === DEMO_EMAIL &&
+        (window.location.protocol === 'file:' || window.location.hostname === 'localhost');
+    const isAdmin = email === OWNER_EMAIL || localDemoAdmin;
+
+    return {
+        ...user,
+        rol: {
+            ...user.rol,
+            nombre: isAdmin ? 'administrador' : 'cajero',
+            permisos: isAdmin ? ADMIN_PERMISSIONS : CASHIER_PERMISSIONS
+        }
+    };
+};
 
 const loadCachedUser = () => {
     const cached = sessionStorage.getItem(SESSION_KEY);
     if (cached) {
         try {
-            currentUser = JSON.parse(cached);
+            currentUser = normalizeUserAccess(JSON.parse(cached));
         } catch (e) {
             console.error('Error parsing cached user', e);
         }
@@ -45,15 +91,7 @@ const fetchUserRole = async (userId, email) => {
 
         const { data, error } = await supabase
             .from('usuarios')
-            .select(`
-                id,
-                nombre,
-                email,
-                rol:roles (
-                    nombre,
-                    permisos
-                )
-            `)
+            .select('id, nombre, email, activo')
             .eq('auth_user_id', userId)
             .single();
 
@@ -64,12 +102,16 @@ const fetchUserRole = async (userId, email) => {
             throw error;
         }
 
-        currentUser = {
+        if (!data || data.activo === false) {
+            throw new Error('El usuario no tiene un perfil activo en la tabla usuarios.');
+        }
+
+        currentUser = normalizeUserAccess({
             id: data.id,
             nombre: data.nombre,
-            email: data.email,
-            rol: data.rol
-        };
+            email: email || data.email,
+            rol: null
+        });
 
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
         notifyListeners();

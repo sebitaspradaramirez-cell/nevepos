@@ -7,15 +7,15 @@ export const CajaService = {
     abrirTurno: async (numeroCaja, montoApertura) => {
         const usuario = getCurrentUser();
         const id = generateUUID();
+        const fechaApertura = new Date().toISOString();
         
         const turno = {
             id,
             numero_caja: parseInt(numeroCaja),
             usuario_id: usuario.id,
-            fecha_apertura: new Date().toISOString(),
+            apertura: fechaApertura,
             monto_apertura: montoApertura,
-            estado: 'abierto',
-            sync_id: id
+            estado: 'abierto'
         };
 
         await db.turnos_caja.put(turno);
@@ -43,31 +43,28 @@ export const CajaService = {
     },
 
     cerrarTurno: async (turnoId) => {
-        const fecha_cierre = new Date().toISOString();
+        const cierre = new Date().toISOString();
         
         await db.turnos_caja.update(turnoId, {
             estado: 'cerrado',
-            fecha_cierre
+            cierre
         });
 
         if (isOnline()) {
             try {
-                const { error } = await supabase.from('turnos_caja').update({
-                    estado: 'cerrado',
-                    fecha_cierre
-                }).eq('id', turnoId);
+                const { error } = await supabase.rpc('cerrar_turno', { p_turno_id: turnoId });
                 if (error) throw error;
             } catch (err) {
                 await db.syncQueue.add({
                     tabla: 'turnos_caja', operacion: 'UPDATE',
-                    datos: { id: turnoId, estado: 'cerrado', fecha_cierre },
+                    datos: { id: turnoId, estado: 'cerrado', cierre },
                     timestamp: Date.now(), intentos: 0, estado: 'pendiente'
                 });
             }
         } else {
             await db.syncQueue.add({
                 tabla: 'turnos_caja', operacion: 'UPDATE',
-                datos: { id: turnoId, estado: 'cerrado', fecha_cierre },
+                datos: { id: turnoId, estado: 'cerrado', cierre },
                 timestamp: Date.now(), intentos: 0, estado: 'pendiente'
             });
         }

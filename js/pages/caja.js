@@ -63,7 +63,7 @@ const renderCajaAbierta = () => {
                 <h2 style="margin: 0; color: #2c3e50;">Caja #${currentTurno.numero_caja} - Turno Abierto</h2>
                 <div style="text-align: right;">
                     <div style="color: #666; font-size: 14px;">Abierto por: ${getCurrentUser().nombre}</div>
-                    <div style="color: #666; font-size: 14px;">Desde: ${formatDate(currentTurno.fecha_apertura || currentTurno.timestamp, 'datetime')}</div>
+                    <div style="color: #666; font-size: 14px;">Desde: ${formatDate(currentTurno.apertura || currentTurno.timestamp, 'datetime')}</div>
                 </div>
             </div>
 
@@ -90,7 +90,7 @@ const renderCajaAbierta = () => {
                 <div style="flex: 2; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 style="margin: 0;">Movimientos de Caja</h3>
-                        <button id="btn-nuevo-mov" class="btn btn-secondary">Registrar Movimiento</button>
+                        ${Auth.hasPermission('admin') ? '<button id="btn-nuevo-mov" class="btn btn-secondary">Registrar Movimiento</button>' : ''}
                     </div>
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
@@ -160,7 +160,7 @@ const refreshData = async (container) => {
         
         document.getElementById('monto-real').addEventListener('input', updateDiferencia);
         
-        document.getElementById('btn-nuevo-mov').addEventListener('click', () => {
+        document.getElementById('btn-nuevo-mov')?.addEventListener('click', () => {
             Modal.open({
                 title: 'Registrar Movimiento',
                 size: 'sm',

@@ -96,7 +96,9 @@ class SyncManager {
                     if (item.tabla === 'ventas') {
                         success = await this.uploadVenta(item.datos);
                     } else if (item.tabla === 'turnos_caja') {
-                        success = await this.uploadTurno(item.datos);
+                        success = item.operacion === 'UPDATE'
+                            ? await this.closeTurno(item.datos)
+                            : await this.uploadTurno(item.datos);
                     } else if (item.tabla === 'productos' && item.operacion === 'UPDATE') {
                         success = await this.uploadProducto(item.datos);
                     }
@@ -153,6 +155,12 @@ class SyncManager {
 
     async uploadTurno(turnoLocal) {
         const { error } = await supabase.from('turnos_caja').upsert([turnoLocal]);
+        if (error) throw error;
+        return true;
+    }
+
+    async closeTurno(turnoLocal) {
+        const { error } = await supabase.rpc('cerrar_turno', { p_turno_id: turnoLocal.id });
         if (error) throw error;
         return true;
     }

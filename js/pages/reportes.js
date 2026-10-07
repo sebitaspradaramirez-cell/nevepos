@@ -1,5 +1,6 @@
 import { reportesService } from '../services/reportes.service.js';
 import { escapeHtml, formatCOP } from '../lib/utils.js';
+import { Auth } from '../lib/auth.js';
 
 export class ReportesPage {
     constructor() {
@@ -7,6 +8,11 @@ export class ReportesPage {
     }
 
     async render() {
+        if (!Auth.hasPermission('reportes')) {
+            this.container.innerHTML = '<h2>Acceso Denegado</h2>';
+            return;
+        }
+
         const today = new Date().toISOString().split('T')[0];
         this.container.innerHTML = `
             <div class="page-header">

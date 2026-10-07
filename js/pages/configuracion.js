@@ -1,5 +1,6 @@
 import { SyncManager } from '../lib/sync.js';
 import { enrollMfa, verifyMfaEnrollment, listMfaFactors, unenrollMfa } from '../lib/auth.js';
+import { Auth } from '../lib/auth.js';
 
 export class ConfiguracionPage {
     constructor() {
@@ -7,6 +8,11 @@ export class ConfiguracionPage {
     }
 
     async render() {
+        if (!Auth.hasPermission('configuracion')) {
+            this.container.innerHTML = '<h2>Acceso Denegado</h2>';
+            return;
+        }
+
         this.container.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">Configuración</h1>

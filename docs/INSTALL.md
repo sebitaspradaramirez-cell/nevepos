@@ -29,28 +29,36 @@ Este documento describe paso a paso cómo instalar, configurar y desplegar el si
    - Ejecuta `sql/005_seed.sql`. (Datos iniciales por defecto, como roles básicos)
     - En una base ya existente, ejecuta `sql/006_productos_disponibles_en_caja.sql` para agregar el control de disponibilidad en Caja.
     - Ejecuta `sql/007_ocultar_producto_en_caja.sql` para permitir ocultar productos desde la registradora sin conceder permisos generales de edición.
+    - Ejecuta `sql/008_restringir_administrador_por_correo.sql` para reservar el rol administrador a `natalypradaramirez@gmail.com` y limitar las demás cuentas activas al rol cajero.
 4. Para verificar, ve a la sección **Table Editor** y comprueba que todas las tablas existan (productos, ventas, usuarios, etc.).
 
 ---
 
-## Paso 3: Crear Usuario Administrador
-Por razones de seguridad, el primer usuario debe crearse manualmente.
+## Paso 3: Crear las Cuentas de Acceso
+La cuenta administradora autorizada es `natalypradaramirez@gmail.com`. Cualquier otra cuenta activa vinculada a `usuarios` queda limitada al rol cajero, aunque se le asigne otro rol en la tabla.
 
 1. Ve a la sección **Authentication** → **Users** → **Add User** (Add new user).
-2. Crea el usuario ingresando el correo electrónico del administrador (ej. `admin@tutienda.com`) y una contraseña segura. 
+2. Crea la cuenta con el correo correspondiente y una contraseña segura.
 3. Una vez creado, copia el **User UID** (ID del usuario, formato UUID) que aparece en la lista.
-4. Regresa al **SQL Editor**, crea una nueva consulta y ejecuta el siguiente comando (reemplazando el UUID):
+4. Regresa al **SQL Editor**, crea una nueva consulta y vincula su perfil (reemplaza UID, nombre y correo):
 
 ```sql
 INSERT INTO usuarios (auth_user_id, nombre, email, rol_id, activo)
 VALUES (
     'TU-USER-UID-AQUI', -- Reemplazar por el User UID copiado en el paso anterior
-    'Administrador Principal',
-    'admin@tutienda.com',
-    (SELECT id FROM roles WHERE nombre = 'administrador'),
+    'Nombre de la persona',
+    'correo@ejemplo.com',
+    (SELECT id FROM roles WHERE nombre = CASE
+        WHEN lower('correo@ejemplo.com') = 'natalypradaramirez@gmail.com' THEN 'administrador'
+        ELSE 'cajero'
+    END),
     true
 );
 ```
+
+Solo `natalypradaramirez@gmail.com` puede modificar productos, compras, usuarios, configuración y anular ventas. Las demás cuentas pueden usar el POS y su turno de Caja, pero no registrar compras ni hacer cambios administrativos.
+
+Para crear la cuenta vendedora, repite esos pasos con su correo y User UID. La migración la reconocerá como cajero por no ser la cuenta propietaria; vincula el perfil activo en `usuarios` para habilitar su acceso al POS.
 
 ---
 

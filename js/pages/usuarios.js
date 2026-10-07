@@ -1,4 +1,5 @@
 import { usuariosService } from '../services/usuarios.service.js';
+import { Auth } from '../lib/auth.js';
 
 export class UsuariosPage {
     constructor() {
@@ -6,6 +7,11 @@ export class UsuariosPage {
     }
 
     async render() {
+        if (!Auth.hasPermission('usuarios')) {
+            this.container.innerHTML = '<h2>Acceso Denegado</h2>';
+            return;
+        }
+
         this.container.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">Gestión de Usuarios</h1>
@@ -38,17 +44,22 @@ export class UsuariosPage {
         try {
             const users = await usuariosService.getAll();
             const tbody = document.querySelector('#users-table tbody');
-            tbody.innerHTML = users.map(u => `
+            tbody.innerHTML = users.map(u => {
+                const roleName = String(u.email || '').trim().toLowerCase() === 'natalypradaramirez@gmail.com'
+                    ? 'administrador'
+                    : 'cajero';
+                return `
                 <tr>
                     <td>${u.nombre}</td>
-                    <td><span class="badge ${u.roles?.nombre === 'admin' ? 'role-admin' : 'role-cajero'}">${u.roles?.nombre || 'N/A'}</span></td>
+                    <td><span class="badge ${roleName === 'administrador' ? 'role-admin' : 'role-cajero'}">${roleName}</span></td>
                     <td><span class="badge ${u.activo ? 'badge-success' : 'badge-danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                     <td>${u.ultimo_acceso || 'Nunca'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline btn-edit" data-id="${u.id}">Editar</button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         } catch (error) {
             console.error('Error loading users:', error);
         }
