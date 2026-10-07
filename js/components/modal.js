@@ -7,7 +7,7 @@ class ModalManager {
             this.overlay = document.createElement('div');
             this.overlay.id = 'modal-overlay';
             this.overlay.className = 'modal-overlay hidden';
-            this.overlay.innerHTML = `<div class="modal-container" id="modal-container"></div>`;
+            this.overlay.innerHTML = `<div class="modal" id="modal-container"></div>`;
             document.body.appendChild(this.overlay);
             
             // Add basic styles to head if not present
@@ -17,10 +17,10 @@ class ModalManager {
                 style.textContent = `
                     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
                     .modal-overlay.hidden { display: none; }
-                    .modal-container { background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 90vh; }
-                    .modal-container.sm { width: 300px; }
-                    .modal-container.md { width: 500px; }
-                    .modal-container.lg { width: 800px; }
+                    .modal { width: calc(100% - 32px); background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; max-height: 90vh; }
+                    .modal.sm { max-width: 360px; }
+                    .modal.md { max-width: 500px; }
+                    .modal.lg { max-width: 800px; }
                     .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
                     .modal-header h3 { margin: 0; font-size: 1.25rem; }
                     .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
@@ -35,7 +35,7 @@ class ModalManager {
             }
         }
         if (!document.getElementById('modal-container')) {
-            this.overlay.innerHTML = `<div class="modal-container" id="modal-container"></div>`;
+            this.overlay.innerHTML = `<div class="modal" id="modal-container"></div>`;
         }
         this.container = document.getElementById('modal-container');
         this.currentOnClose = null;
@@ -55,7 +55,7 @@ class ModalManager {
 
     open({ title, content, size = 'md', onClose, actions = [] }) {
         this.currentOnClose = onClose;
-        this.container.className = `modal-container ${size}`;
+        this.container.className = `modal ${size}`;
         
         let footerHtml = '';
         if (actions.length > 0) {

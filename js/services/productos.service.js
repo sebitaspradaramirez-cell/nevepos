@@ -142,6 +142,9 @@ export const ProductosService = {
       const prod = await db.productos.get(id);
       await db.syncQueue.add({
         id: generateUUID(),
+        tabla: 'productos',
+        operacion: 'UPDATE',
+        datos: { id, ...updatedData },
         action: 'UPDATE',
         table: 'productos',
         record_id: id,
@@ -151,6 +154,45 @@ export const ProductosService = {
       Toast.info('Actualizado localmente. Se sincronizará cuando haya conexión.');
       return prod;
     }
+  },
+
+  async hideFromCaja(id, password) {
+    if (!isOnline()) {
+      throw new Error('Se necesita conexión a internet para ocultar el producto de forma segura');
+    }
+
+    if (password !== '081426') {
+      throw new Error('Contraseña incorrecta');
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+
+    const isServerProduct = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!sessionData.session || !isServerProduct) {
+      const localProduct = await db.productos.get(id);
+      if (!localProduct) throw new Error('Producto no encontrado');
+      await db.productos.put({ ...localProduct, disponible_en_caja: false });
+      return { localOnly: true };
+    }
+
+    const { error } = await supabase.rpc('ocultar_producto_en_caja', {
+      p_producto_id: id,
+      p_password: password
+    });
+
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') {
+        throw new Error('Falta instalar la migración sql/007_ocultar_producto_en_caja.sql en Supabase');
+      }
+      throw error;
+    }
+
+    const product = await db.productos.get(id);
+    if (product) {
+      await db.productos.put({ ...product, disponible_en_caja: false });
+    }
+    return { localOnly: false };
   },
 
   async delete(id) {

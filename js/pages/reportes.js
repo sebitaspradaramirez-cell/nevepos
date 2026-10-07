@@ -1,4 +1,5 @@
 import { reportesService } from '../services/reportes.service.js';
+import { escapeHtml, formatCOP } from '../lib/utils.js';
 
 export class ReportesPage {
     constructor() {
@@ -6,6 +7,7 @@ export class ReportesPage {
     }
 
     async render() {
+        const today = new Date().toISOString().split('T')[0];
         this.container.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">Reportes y Dashboard</h1>
@@ -19,8 +21,8 @@ export class ReportesPage {
                 <div class="card-body">
                     <div class="date-filter-group">
                         <label class="form-label mb-0">Rango de fechas:</label>
-                        <input type="date" class="form-control" id="filter-inicio">
-                        <input type="date" class="form-control" id="filter-fin">
+                        <input type="date" class="form-control" id="filter-inicio" value="${today}">
+                        <input type="date" class="form-control" id="filter-fin" value="${today}">
                         <button class="btn btn-primary" id="btn-filter">Aplicar</button>
                     </div>
                 </div>
@@ -40,6 +42,16 @@ export class ReportesPage {
                     <div class="card-body chart-container"><canvas id="chart-top-productos"></canvas></div>
                 </div>
             </div>
+
+            <div class="card mt-6">
+                <div class="card-header"><h3 class="card-title">Historial de ventas</h3></div>
+                <div class="card-body" style="overflow-x: auto;">
+                    <table class="table table-striped">
+                        <thead><tr><th>Fecha</th><th>Número</th><th>Método</th><th>Estado</th><th>Total</th></tr></thead>
+                        <tbody id="sales-history-body"><tr><td colspan="5">Cargando ventas...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
         `;
         
         await this.loadData();
@@ -50,7 +62,27 @@ export class ReportesPage {
         const inicio = document.getElementById('filter-inicio')?.value || new Date().toISOString().split('T')[0];
         const fin = document.getElementById('filter-fin')?.value || new Date().toISOString().split('T')[0];
         
-        const resumen = await reportesService.getResumenDiario();
+        const ventas = await reportesService.getHistorialVentas(inicio, fin);
+
+        const historyBody = document.getElementById('sales-history-body');
+        if (historyBody) {
+            historyBody.innerHTML = ventas.length ? ventas.map(venta => `
+                <tr>
+                    <td>${escapeHtml(new Date(venta.fecha).toLocaleString())}</td>
+                    <td>${escapeHtml(venta.numero_venta || '')}</td>
+                    <td>${escapeHtml(venta.metodo_pago || '')}</td>
+                    <td>${escapeHtml(venta.estado || '')}</td>
+                    <td>${formatCOP(venta.total || 0)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="5">No hay ventas para este rango de fechas.</td></tr>';
+        }
+
+        let resumen = { total_ventas: 0, num_transacciones: 0, ticket_promedio: 0, items_vendidos: 0 };
+        try {
+            resumen = await reportesService.getResumenDiario();
+        } catch (error) {
+            console.error('No se pudo cargar el resumen diario:', error);
+        }
         
         const kpiContainer = document.getElementById('kpi-container');
         if (kpiContainer) {

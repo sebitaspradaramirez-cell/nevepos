@@ -72,7 +72,8 @@ export const VentasService = {
                 
                 // Update local with server ID if returned
                 if (data) {
-                    await db.ventas.where('sync_id').equals(syncId).modify({ id: data });
+                    await db.ventas.where('sync_id').equals(syncId).modify({ server_id: data });
+                    venta.server_id = data;
                 }
             } catch (err) {
                 console.error('Error syncing venta, queued for offline:', err);
@@ -102,7 +103,7 @@ export const VentasService = {
 
         if (isOnline()) {
             try {
-                const { error } = await supabase.from('ventas').update({ estado: 'anulada' }).eq('id', ventaId);
+                const { error } = await supabase.from('ventas').update({ estado: 'anulada' }).eq('id', venta.server_id || ventaId);
                 if (error) throw error;
             } catch (err) {
                 await db.syncQueue.add({

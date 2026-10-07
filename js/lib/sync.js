@@ -97,6 +97,8 @@ class SyncManager {
                         success = await this.uploadVenta(item.datos);
                     } else if (item.tabla === 'turnos_caja') {
                         success = await this.uploadTurno(item.datos);
+                    } else if (item.tabla === 'productos' && item.operacion === 'UPDATE') {
+                        success = await this.uploadProducto(item.datos);
                     }
                     // Add other tables as needed...
 
@@ -126,14 +128,25 @@ class SyncManager {
         }
     }
 
-    async uploadVenta(ventaLocal) {
-        // Implement upload logic using Supabase RPC or direct insert
-        // On success, update local record with real ID
-        const { data, error } = await supabase.rpc('registrar_venta', { payload: ventaLocal });
+    async uploadVenta({ venta, detalles }) {
+        const { data, error } = await supabase.rpc('registrar_venta', {
+            p_items: detalles.map(item => ({
+                producto_id: item.producto_id,
+                cantidad: item.cantidad,
+                precio_unitario: item.precio_unitario,
+                descuento: item.descuento || 0
+            })),
+            p_cliente_id: venta.cliente_id || null,
+            p_metodo_pago: venta.metodo_pago,
+            p_descuento: venta.descuento || 0,
+            p_notas: venta.notas || null,
+            p_turno_caja_id: venta.turno_caja_id || null,
+            p_sync_id: venta.sync_id
+        });
         if (error) throw error;
         
-        if (data && data.id) {
-            await db.ventas.update(ventaLocal.id, { ...data, sync_estado: 'sincronizado' });
+        if (data) {
+            await db.ventas.where('sync_id').equals(venta.sync_id).modify({ server_id: data, sync_estado: 'sincronizado' });
         }
         return true;
     }
@@ -141,6 +154,18 @@ class SyncManager {
     async uploadTurno(turnoLocal) {
         const { error } = await supabase.from('turnos_caja').upsert([turnoLocal]);
         if (error) throw error;
+        return true;
+    }
+
+    async uploadProducto({ id, ...datos }) {
+        const { data, error } = await supabase
+            .from('productos')
+            .update(datos)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        if (data) await db.productos.put(data);
         return true;
     }
 

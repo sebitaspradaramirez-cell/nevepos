@@ -4,6 +4,7 @@ import { formatCOP, generateUUID, generateNumeroVenta, debounce, isOnline, escap
 import { Toast } from '../lib/toast.js';
 import { Modal } from '../components/modal.js';
 import { VentasService } from '../services/ventas.service.js';
+import { ProductosService } from '../services/productos.service.js';
 import { CajaService } from '../services/caja.service.js';
 
 let cart = [];
@@ -49,7 +50,7 @@ const renderCart = () => {
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px;">
                     <button class="btn btn-sm" onclick="PosApp.updateQuantity(${index}, ${item.cantidad - 1})" style="padding: 2px 8px;">-</button>
-                    <input type="number" value="${item.cantidad}" onchange="PosApp.updateQuantity(${index}, parseInt(this.value))" style="width: 40px; text-align: center; padding: 2px;">
+                    <input type="number" min="1" max="${item.producto.stock_actual}" step="1" inputmode="numeric" aria-label="Cantidad de ${escapeHtml(item.producto.nombre)}" value="${item.cantidad}" onchange="PosApp.updateQuantity(${index}, this.value)" style="width: 64px; height: 36px; text-align: center; padding: 4px; font-size: 16px;">
                     <button class="btn btn-sm" onclick="PosApp.updateQuantity(${index}, ${item.cantidad + 1})" style="padding: 2px 8px;">+</button>
                 </div>
                 <div style="width: 80px; text-align: right; font-weight: bold;">
@@ -85,6 +86,7 @@ const renderProducts = (products) => {
 
         return `
             <div class="pos-product-card" onclick="${outOfStock ? '' : `PosApp.addToCart('${p.id}')`}" style="
+                position: relative;
                 border: 1px solid #ddd;
                 border-radius: 8px;
                 padding: 10px;
@@ -96,6 +98,7 @@ const renderProducts = (products) => {
                 justify-content: space-between;
                 height: 120px;
             ">
+                <button type="button" title="Ocultar de la registradora" aria-label="Ocultar ${escapeHtml(p.nombre)} de la registradora" onclick="event.stopPropagation(); PosApp.hideProduct('${p.id}')" style="position: absolute; top: 5px; right: 5px; border: 0; background: #fff; color: #b42318; font-size: 18px; line-height: 1; cursor: pointer;">×</button>
                 <div style="font-size: 13px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
                     ${escapeHtml(p.nombre)}
                 </div>
@@ -276,18 +279,68 @@ window.PosApp = {
         renderCart();
     },
     updateQuantity: (index, newQty) => {
-        if (newQty <= 0) return;
         const item = cart[index];
-        if (newQty > item.producto.stock_actual) {
-            Toast.warning('Stock insuficiente');
+        if (!item) return;
+
+        const quantity = Number(newQty);
+        if (!Number.isSafeInteger(quantity) || quantity < 1) {
+            Toast.warning('Ingresa una cantidad entera mayor que cero');
+            renderCart();
             return;
         }
-        item.cantidad = newQty;
+        if (quantity > item.producto.stock_actual) {
+            Toast.warning('Stock insuficiente');
+            renderCart();
+            return;
+        }
+        item.cantidad = quantity;
         renderCart();
     },
     removeFromCart: (index) => {
         cart.splice(index, 1);
         renderCart();
+    },
+    hideProduct: (productoId) => {
+        const product = allProducts.find(item => item.id === productoId);
+        if (!product) return;
+
+        Modal.open({
+            title: 'Ocultar producto de caja',
+            content: `<p>Ingresa la contraseña para ocultar <strong>${escapeHtml(product.nombre)}</strong> de la registradora. El producto seguirá en inventario.</p><input id="hide-product-password" type="password" autocomplete="current-password" style="width: 100%; box-sizing: border-box; padding: 10px;" aria-label="Contraseña">`,
+            size: 'sm',
+            actions: [
+                { label: 'Cancelar', class: 'btn-secondary', onClick: (e, modal) => modal.close() },
+                {
+                    label: 'Ocultar',
+                    class: 'btn-danger',
+                    onClick: async (e, modal) => {
+                        try {
+                            const result = await ProductosService.hideFromCaja(
+                                productoId,
+                                document.getElementById('hide-product-password').value
+                            );
+                            allProducts = allProducts.filter(item => item.id !== productoId);
+                            const term = document.getElementById('pos-search').value.toLowerCase();
+                            let visibleProducts = allProducts.filter(item =>
+                                item.nombre.toLowerCase().includes(term) ||
+                                (item.codigo_barras && item.codigo_barras.includes(term)) ||
+                                (item.sku && item.sku.toLowerCase().includes(term))
+                            );
+                            if (selectedCategory) {
+                                visibleProducts = visibleProducts.filter(item => item.categoria_id === selectedCategory);
+                            }
+                            renderProducts(visibleProducts);
+                            modal.close();
+                            Toast.success(result.localOnly
+                                ? 'Producto ocultado en esta demostración local'
+                                : 'Producto ocultado de la registradora');
+                        } catch (error) {
+                            Toast.error('No se pudo ocultar el producto: ' + error.message);
+                        }
+                    }
+                }
+            ]
+        });
     }
 };
 
