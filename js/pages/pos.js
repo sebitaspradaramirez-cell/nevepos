@@ -15,6 +15,7 @@ let selectedPaymentMethod = 'efectivo';
 let currentTurno = null;
 let searchInputHandler = null;
 let keydownHandler = null;
+let productsChannel = null;
 
 const renderCart = () => {
     const cartItemsEl = document.getElementById('cart-items');
@@ -111,6 +112,55 @@ const renderProducts = (products) => {
             </div>
         `;
     }).join('');
+};
+
+const renderVisibleProducts = () => {
+    const searchInput = document.getElementById('pos-search');
+    if (!searchInput) return;
+
+    const term = searchInput.value.toLowerCase();
+    let filtered = allProducts.filter(p =>
+        p.nombre.toLowerCase().includes(term) ||
+        (p.codigo_barras && p.codigo_barras.includes(term)) ||
+        (p.sku && p.sku.toLowerCase().includes(term))
+    );
+    if (selectedCategory) {
+        filtered = filtered.filter(p => p.categoria_id === selectedCategory);
+    }
+    renderProducts(filtered);
+};
+
+const handleProductChange = async (payload) => {
+    if (!document.getElementById('pos-products')) return;
+
+    const productId = payload.eventType === 'DELETE' ? payload.old?.id : payload.new?.id;
+    if (!productId) return;
+
+    if (payload.eventType === 'DELETE') {
+        await db.productos.delete(productId);
+        allProducts = allProducts.filter(product => product.id !== productId);
+    } else {
+        const product = payload.new;
+        await db.productos.put(product);
+
+        if ((product.activo === 1 || product.activo === true) && product.disponible_en_caja !== false) {
+            const index = allProducts.findIndex(item => item.id === product.id);
+            if (index === -1) allProducts.push(product);
+            else allProducts[index] = product;
+        } else {
+            allProducts = allProducts.filter(item => item.id !== product.id);
+        }
+
+        cart.forEach(item => {
+            if (item.producto.id === product.id) {
+                item.producto = product;
+                item.precio_unitario = product.precio_venta;
+            }
+        });
+    }
+
+    renderVisibleProducts();
+    if (cart.length) renderCart();
 };
 
 const procesarVenta = async () => {
@@ -420,6 +470,13 @@ export const PosPage = {
 
     onMount: async () => {
         try {
+            if (isOnline()) {
+                const synced = await ProductosService.syncFromServer();
+                if (!synced) {
+                    Toast.warning('No se pudo actualizar el inventario; se muestran los datos guardados.');
+                }
+            }
+
             currentTurno = await CajaService.getTurnoActual();
             if (!currentTurno) {
                 Modal.alert('Atención', 'No hay un turno de caja abierto. Debe abrir caja antes de registrar ventas.');
@@ -455,25 +512,12 @@ export const PosPage = {
 
             renderProducts(allProducts);
 
-            let searchVal = '';
-            const doSearch = debounce(() => {
-                const term = searchVal.toLowerCase();
-                let filtered = allProducts.filter(p => 
-                    p.nombre.toLowerCase().includes(term) || 
-                    (p.codigo_barras && p.codigo_barras.includes(term)) ||
-                    (p.sku && p.sku.toLowerCase().includes(term))
-                );
-                if (selectedCategory) {
-                    filtered = filtered.filter(p => p.categoria_id === selectedCategory);
-                }
-                renderProducts(filtered);
-            }, 300);
+            const doSearch = debounce(renderVisibleProducts, 300);
 
             const searchInput = document.getElementById('pos-search');
             let lastKeyTime = 0;
             
             searchInputHandler = (e) => {
-                searchVal = e.target.value;
                 doSearch();
             };
             searchInput.addEventListener('input', searchInputHandler);
@@ -547,6 +591,10 @@ export const PosPage = {
             };
             document.addEventListener('keydown', keydownHandler);
 
+            productsChannel = ProductosService.subscribeToChanges(payload => {
+                handleProductChange(payload).catch(error => console.error('Unable to apply product update:', error));
+            });
+
         } catch (error) {
             console.error(error);
             Toast.error('Error al cargar POS');
@@ -555,6 +603,10 @@ export const PosPage = {
 
     onUnmount: () => {
         if (keydownHandler) document.removeEventListener('keydown', keydownHandler);
+        if (productsChannel) {
+            productsChannel.unsubscribe();
+            productsChannel = null;
+        }
         cart = [];
         allProducts = [];
         allCategories = [];

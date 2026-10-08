@@ -272,16 +272,30 @@ export const ProductosService = {
   },
 
   async syncFromServer() {
-    if (!isOnline()) return;
+    if (!isOnline()) return false;
     try {
       const { data, error } = await supabase.from('productos').select('*');
       if (error) throw error;
-      if (data && data.length > 0) {
+      if (data) {
         await db.productos.clear();
         await db.productos.bulkPut(data);
       }
+      return true;
     } catch (error) {
       console.error('Error syncing products:', error);
+      return false;
     }
-  }
+  },
+  subscribeToChanges(callback) {
+    if (!isOnline() || typeof supabase.channel !== 'function') return null;
+
+    return supabase
+      .channel('nevepos-pos-productos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, callback)
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Product realtime subscription failed:', error);
+        }
+      });
+  },
 };
