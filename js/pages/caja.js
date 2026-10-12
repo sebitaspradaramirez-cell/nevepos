@@ -12,7 +12,10 @@ let arqueo = null;
 const renderAbrirCaja = () => {
     return `
         <div style="max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="margin-top: 0; margin-bottom: 20px; color: #2c3e50;">Abrir Turno de Caja</h2>
+            <div class="caja-section-heading">
+                <h2 style="margin-top: 0; margin-bottom: 20px; color: #2c3e50;">Abrir Turno de Caja</h2>
+                <button id="btn-cuadre-protegido" class="btn btn-outline">Ver cuadre</button>
+            </div>
             
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Número de Caja</label>
@@ -32,6 +35,138 @@ const renderAbrirCaja = () => {
             </button>
         </div>
     `;
+};
+
+const renderCuadreResumen = (summary) => {
+    const amount = value => formatCOP(Number(value) || 0);
+    const today = summary.today || {};
+    const previous = summary.previous_days || {};
+    const allTime = summary.all_time || {};
+
+    Modal.open({
+        title: 'Cuadre de caja',
+        size: 'lg',
+        content: `
+            <div class="cuadre-summary-grid">
+                <section class="cuadre-summary-panel cuadre-summary-today">
+                    <span class="cuadre-summary-label">Ventas de hoy</span>
+                    <strong class="cuadre-summary-total">${amount(today.total)}</strong>
+                    <dl>
+                        <div><dt>Efectivo</dt><dd>${amount(today.cash)}</dd></div>
+                        <div><dt>Transferencia</dt><dd>${amount(today.transfer)}</dd></div>
+                        <div><dt>Mixtas</dt><dd>${amount(today.mixed)}</dd></div>
+                    </dl>
+                </section>
+                <section class="cuadre-summary-panel cuadre-summary-history">
+                    <span class="cuadre-summary-label">Días anteriores</span>
+                    <strong class="cuadre-summary-total">${amount(previous.total)}</strong>
+                    <dl>
+                        <div><dt>Efectivo</dt><dd>${amount(previous.cash)}</dd></div>
+                        <div><dt>Transferencia</dt><dd>${amount(previous.transfer)}</dd></div>
+                        <div><dt>Mixtas</dt><dd>${amount(previous.mixed)}</dd></div>
+                    </dl>
+                </section>
+                <section class="cuadre-summary-panel cuadre-summary-lifetime">
+                    <span class="cuadre-summary-label">Ventas acumuladas</span>
+                    <strong class="cuadre-summary-total">${amount(allTime.total)}</strong>
+                    <span class="text-muted">Efectivo ${amount(allTime.cash)} · Transferencias ${amount(allTime.transfer)}</span>
+                </section>
+                <section class="cuadre-summary-panel cuadre-summary-expected">
+                    <span class="cuadre-summary-label">Debe haber en cajas abiertas</span>
+                    <strong class="cuadre-summary-total">${amount(summary.expected_cash)}</strong>
+                    <span class="text-muted">${Number(summary.open_turns) || 0} turnos abiertos</span>
+                </section>
+            </div>
+            <p class="cuadre-summary-note">El efectivo esperado suma la apertura, las ventas en efectivo y las entradas, menos las salidas de los turnos que siguen abiertos. Las transferencias y ventas mixtas se muestran aparte.</p>
+        `,
+        actions: [{ label: 'Cerrar', class: 'btn-primary', onClick: (event, modal) => modal.close() }]
+    });
+};
+
+const consultarCuadre = async (pin, configurePin = false) => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    if (configurePin) await CajaService.configurarPinCuadre(pin);
+    const summary = await CajaService.getCuadreResumen(pin, todayStart.toISOString(), todayEnd.toISOString());
+
+    if (summary?.setup_required) {
+        throw new Error(Auth.hasPermission('admin')
+            ? 'Configura el acceso con el botón “Configurar y consultar”.'
+            : 'El acceso al cuadre aún no ha sido configurado por la administradora.');
+    }
+    if (summary?.locked) throw new Error('Demasiados intentos. Espera 15 minutos antes de volver a probar.');
+    if (!summary?.ok) throw new Error('Código incorrecto.');
+    return summary;
+};
+
+const openCuadreAccess = () => {
+    const adminCanConfigure = Auth.hasPermission('admin');
+    const actions = [
+        { label: 'Cancelar', class: 'btn-secondary', onClick: (event, modal) => modal.close() },
+        {
+            label: 'Consultar',
+            class: 'btn-primary',
+            onClick: async (event, modal) => {
+                const pin = document.getElementById('cuadre-pin')?.value || '';
+                if (!/^\d{6}$/.test(pin)) {
+                    Toast.error('Ingresa un código de seis dígitos.');
+                    return;
+                }
+                try {
+                    const summary = await consultarCuadre(pin);
+                    modal.close();
+                    renderCuadreResumen(summary);
+                } catch (error) {
+                    Toast.error(error.message || 'No se pudo consultar el cuadre.');
+                }
+            }
+        }
+    ];
+
+    if (adminCanConfigure) {
+        actions.push({
+            label: 'Configurar y consultar',
+            class: 'btn-success',
+            onClick: async (event, modal) => {
+                const pin = document.getElementById('cuadre-pin')?.value || '';
+                if (!/^\d{6}$/.test(pin)) {
+                    Toast.error('Ingresa un código de seis dígitos.');
+                    return;
+                }
+                try {
+                    const summary = await consultarCuadre(pin, true);
+                    modal.close();
+                    renderCuadreResumen(summary);
+                } catch (error) {
+                    Toast.error(error.message || 'No se pudo configurar el acceso.');
+                }
+            }
+        });
+    }
+
+    Modal.open({
+        title: 'Acceso al cuadre',
+        size: 'sm',
+        content: `
+            <p>Ingresa el código para consultar ventas y efectivo esperado.</p>
+            <label class="form-label" for="cuadre-pin">Código de acceso</label>
+            <input id="cuadre-pin" class="form-control" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off" aria-label="Código de acceso">
+            ${adminCanConfigure ? '<p class="form-text">Usa “Configurar y consultar” solo al crear o cambiar el código.</p>' : ''}
+        `,
+        onClose: () => {
+            const input = document.getElementById('cuadre-pin');
+            if (input) input.value = '';
+        },
+        actions
+    });
+    document.getElementById('cuadre-pin')?.focus();
+};
+
+const bindCuadreButton = (container) => {
+    container.querySelector('#btn-cuadre-protegido')?.addEventListener('click', openCuadreAccess);
 };
 
 const renderCajaAbierta = () => {
@@ -61,9 +196,12 @@ const renderCajaAbierta = () => {
         <div style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0; color: #2c3e50;">Caja #${currentTurno.numero_caja} - Turno Abierto</h2>
-                <div style="text-align: right;">
-                    <div style="color: #666; font-size: 14px;">Abierto por: ${getCurrentUser().nombre}</div>
-                    <div style="color: #666; font-size: 14px;">Desde: ${formatDate(currentTurno.apertura || currentTurno.timestamp, 'datetime')}</div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button id="btn-cuadre-protegido" class="btn btn-outline">Ver cuadre</button>
+                    <div style="text-align: right;">
+                        <div style="color: #666; font-size: 14px;">Abierto por: ${getCurrentUser().nombre}</div>
+                        <div style="color: #666; font-size: 14px;">Desde: ${formatDate(currentTurno.apertura || currentTurno.timestamp, 'datetime')}</div>
+                    </div>
                 </div>
             </div>
 
@@ -157,6 +295,7 @@ const refreshData = async (container) => {
         movimientos = await CajaService.getMovimientos(currentTurno.id);
         arqueo = await CajaService.getArqueo(currentTurno.id);
         container.innerHTML = renderCajaAbierta();
+            bindCuadreButton(container);
         
         document.getElementById('monto-real').addEventListener('input', updateDiferencia);
         
@@ -230,6 +369,7 @@ const refreshData = async (container) => {
 
     } else {
         container.innerHTML = renderAbrirCaja();
+        bindCuadreButton(container);
         document.getElementById('btn-abrir-turno').addEventListener('click', async () => {
             const numeroCaja = document.getElementById('caja-numero').value;
             const monto = parseInt(document.getElementById('caja-monto').value) || 0;

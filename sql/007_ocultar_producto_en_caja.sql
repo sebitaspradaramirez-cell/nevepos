@@ -14,7 +14,7 @@ BEGIN
         RAISE EXCEPTION 'Debes iniciar sesión para ocultar productos' USING ERRCODE = '42501';
     END IF;
 
-    IF p_password IS DISTINCT FROM '081426' THEN
+    IF private.verify_cash_drawer_pin(p_password) <> 'ok' THEN
         RAISE EXCEPTION 'Contraseña incorrecta' USING ERRCODE = '42501';
     END IF;
 

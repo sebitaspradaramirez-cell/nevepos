@@ -28,9 +28,9 @@ Este documento describe paso a paso cómo instalar, configurar y desplegar el si
    - Ejecuta `sql/004_triggers.sql`. (Triggers automáticos)
    - Ejecuta `sql/005_seed.sql`. (Datos iniciales por defecto, como roles básicos)
     - En una base ya existente, ejecuta `sql/006_productos_disponibles_en_caja.sql` para agregar el control de disponibilidad en Caja.
-    - Ejecuta `sql/007_ocultar_producto_en_caja.sql` para permitir ocultar productos desde la registradora sin conceder permisos generales de edición.
     - Ejecuta `sql/008_restringir_administrador_por_correo.sql` para reservar el rol administrador a `natalypradaramirez@gmail.com` y limitar las demás cuentas activas al rol cajero.
     - Ejecuta `sql/009_creditos_trabajadores.sql` para crear el registro de créditos y liquidaciones de trabajadores, accesible solo para administradores.
+    - Ejecuta `sql/010_cuadre_caja_protegido.sql` para habilitar el cuadre protegido, guardar el código como hash privado y configurar la validación para ocultar productos. Este script sustituye a `sql/007_ocultar_producto_en_caja.sql`; no ejecutes el 007 después del 010.
 4. Para verificar, ve a la sección **Table Editor** y comprueba que todas las tablas existan (productos, ventas, usuarios, etc.).
 
 ---
@@ -121,8 +121,9 @@ server {
 ## Solución de Problemas
 
 - **Error de conexión o datos no cargan**: Verifica que `SUPABASE_URL` y `SUPABASE_ANON_KEY` estén correctos en `js/config.js`. Asegúrate de que no haya espacios en blanco extra.
-- **Error de permisos al ocultar un producto en Caja**: Ejecuta `sql/007_ocultar_producto_en_caja.sql` en SQL Editor y verifica que el usuario autenticado tenga rol de administrador o cajero en `usuarios`.
+- **Error al ocultar productos o abrir el cuadre protegido**: Ejecuta `sql/010_cuadre_caja_protegido.sql` en SQL Editor. La administradora debe configurar el código desde Caja antes del primer uso.
 - **No carga Créditos a trabajadores**: Ejecuta `sql/009_creditos_trabajadores.sql` en Supabase SQL Editor e inicia sesión con la cuenta administradora.
+- **No carga el cuadre protegido**: Ejecuta `sql/010_cuadre_caja_protegido.sql`. Después, en Caja, la administradora debe introducir y configurar el código desde **Configurar y consultar**; se guarda como hash en un esquema privado.
 - **Otros errores de permisos (Row Level Security)**: Verifica que hayas ejecutado el archivo `sql/002_rls_policies.sql` y que el usuario tenga el `rol_id` correspondiente en la tabla `usuarios`.
 - **La PWA no se instala / No aparece el botón de instalar**: Para que una PWA funcione y se pueda instalar, el sitio DEBE servirse a través de **HTTPS** (o localhost para pruebas locales).
 

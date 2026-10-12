@@ -161,10 +161,6 @@ export const ProductosService = {
       throw new Error('Se necesita conexión a internet para ocultar el producto de forma segura');
     }
 
-    if (password !== '081426') {
-      throw new Error('Contraseña incorrecta');
-    }
-
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
 

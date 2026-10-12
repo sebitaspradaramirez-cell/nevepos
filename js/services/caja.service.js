@@ -160,5 +160,34 @@ export const CajaService = {
             ventas_transferencia,
             expected_total
         };
+    },
+
+    getCuadreResumen: async (pin, todayStart, todayEnd) => {
+        if (!isOnline()) throw new Error('El cuadre protegido requiere conexión a internet.');
+
+        const { data, error } = await supabase.rpc('get_cash_drawer_summary', {
+            p_pin: pin,
+            p_today_start: todayStart,
+            p_today_end: todayEnd
+        });
+        if (error) {
+            if (error.code === 'PGRST202' || error.code === '42883') {
+                throw new Error('Falta instalar sql/010_cuadre_caja_protegido.sql en Supabase.');
+            }
+            throw error;
+        }
+        return data;
+    },
+
+    configurarPinCuadre: async (pin) => {
+        if (!isOnline()) throw new Error('Se requiere conexión a internet para configurar el acceso.');
+
+        const { error } = await supabase.rpc('set_cash_drawer_pin', { p_pin: pin });
+        if (error) {
+            if (error.code === 'PGRST202' || error.code === '42883') {
+                throw new Error('Falta instalar sql/010_cuadre_caja_protegido.sql en Supabase.');
+            }
+            throw error;
+        }
     }
 };
