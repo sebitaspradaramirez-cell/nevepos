@@ -100,7 +100,8 @@ BEGIN
     ON CONFLICT (singleton) DO UPDATE
         SET pin_hash = EXCLUDED.pin_hash,
             updated_at = now();
-    DELETE FROM private.cash_drawer_attempts;
+    DELETE FROM private.cash_drawer_attempts
+    WHERE auth_user_id IS NOT NULL;
 
     RETURN true;
 END;
