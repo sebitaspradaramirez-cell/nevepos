@@ -16,6 +16,7 @@ const ADMIN_PERMISSIONS = {
     reportes: true,
     usuarios: true,
     configuracion: true,
+    creditos_trabajadores: true,
     caja_movimientos: true,
     admin: true
 };
@@ -30,6 +31,7 @@ const CASHIER_PERMISSIONS = {
     reportes: false,
     usuarios: false,
     configuracion: false,
+    creditos_trabajadores: false,
     caja_movimientos: false,
     admin: false
 };
@@ -271,6 +273,7 @@ export const setDemoUser = (rolNombre = 'administrador') => {
                 reportes: true,
                 usuarios: true,
                 configuracion: true,
+                creditos_trabajadores: true,
                 admin: true
             }
         }

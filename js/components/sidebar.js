@@ -12,6 +12,7 @@ export const Sidebar = {
             { path: '#/proveedores', icon: '🏢', label: 'Proveedores', perm: 'proveedores' },
             { path: '#/compras', icon: '🛍️', label: 'Compras', perm: 'compras' },
             { path: '#/reportes', icon: '📈', label: 'Reportes', perm: 'reportes' },
+            { path: '#/creditos-trabajadores', icon: '🧾', label: 'Créditos a trabajadores', perm: 'creditos_trabajadores' },
             { path: '#/usuarios', icon: '👤', label: 'Usuarios', perm: 'usuarios' },
             { path: '#/configuracion', icon: '⚙️', label: 'Configuración', perm: 'configuracion' }
         ];

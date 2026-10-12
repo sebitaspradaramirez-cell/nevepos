@@ -17,6 +17,7 @@ import { ComprasPage } from './pages/compras.js';
 import { ReportesPage } from './pages/reportes.js';
 import { UsuariosPage } from './pages/usuarios.js';
 import { ConfiguracionPage } from './pages/configuracion.js';
+import { CreditosTrabajadoresPage } from './pages/creditos-trabajadores.js';
 
 class App {
     async init() {
@@ -32,6 +33,7 @@ class App {
         this.router.addRoute('/proveedores', ProveedoresPage);
         this.router.addRoute('/compras', ComprasPage);
         this.router.addRoute('/reportes', ReportesPage);
+        this.router.addRoute('/creditos-trabajadores', CreditosTrabajadoresPage);
         this.router.addRoute('/usuarios', UsuariosPage);
         this.router.addRoute('/configuracion', ConfiguracionPage);
         
