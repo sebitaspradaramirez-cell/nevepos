@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nevepos-v5';
+const CACHE_NAME = 'nevepos-v6';
 const FILES_TO_CACHE = [
   '/',
   '/index.html',

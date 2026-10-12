@@ -14,6 +14,10 @@ db.version(1).stores({
     meta: 'id'
 });
 
+db.version(2).stores({
+    ventas: 'id, numero_venta, sync_id, fecha, estado, usuario_id, turno_caja_id'
+});
+
 export const clearAllData = async () => {
     try {
         await Promise.all(db.tables.map(table => table.clear()));
