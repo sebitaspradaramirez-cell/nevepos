@@ -42,32 +42,45 @@ export const CajaService = {
         return turno;
     },
 
-    cerrarTurno: async (turnoId) => {
+    cerrarTurno: async (turnoId, montoReal) => {
+        const montoCierre = Number(montoReal);
+        if (!Number.isSafeInteger(montoCierre) || montoCierre < 0) {
+            throw new Error('El monto real contado debe ser un entero igual o mayor que cero.');
+        }
+
         const cierre = new Date().toISOString();
-        
-        await db.turnos_caja.update(turnoId, {
-            estado: 'cerrado',
-            cierre
-        });
+        const datosCierre = { id: turnoId, estado: 'cerrado', cierre, monto_cierre: montoCierre };
+        let encolar = !isOnline();
 
         if (isOnline()) {
             try {
-                const { error } = await supabase.rpc('cerrar_turno', { p_turno_id: turnoId });
-                if (error) throw error;
-            } catch (err) {
-                await db.syncQueue.add({
-                    tabla: 'turnos_caja', operacion: 'UPDATE',
-                    datos: { id: turnoId, estado: 'cerrado', cierre },
-                    timestamp: Date.now(), intentos: 0, estado: 'pendiente'
+                const { error } = await supabase.rpc('cerrar_turno_con_conteo', {
+                    p_turno_id: turnoId,
+                    p_monto_real: montoCierre
                 });
+                if (error) throw error;
+            } catch (error) {
+                if (error.code === 'PGRST202' || error.code === '42883') {
+                    throw new Error('Falta instalar sql/011_ventas_reales_y_cierre_conteo.sql en Supabase.');
+                }
+                if (error.code === '42501' || error.code === '22023') throw error;
+                encolar = true;
             }
-        } else {
+
+        }
+        if (encolar) {
             await db.syncQueue.add({
                 tabla: 'turnos_caja', operacion: 'UPDATE',
-                datos: { id: turnoId, estado: 'cerrado', cierre },
+                datos: datosCierre,
                 timestamp: Date.now(), intentos: 0, estado: 'pendiente'
             });
         }
+
+        await db.turnos_caja.update(turnoId, {
+            estado: 'cerrado',
+            cierre,
+            monto_cierre: montoCierre
+        });
     },
 
     getTurnoActual: async () => {
@@ -176,7 +189,23 @@ export const CajaService = {
             }
             throw error;
         }
-        return data;
+        if (!data?.ok) return data;
+
+        const { data: cierres, error: cierresError } = await supabase.rpc('get_cash_drawer_closed_totals', {
+            p_pin: pin,
+            p_today_start: todayStart,
+            p_today_end: todayEnd
+        });
+        if (cierresError) {
+            if (cierresError.code === 'PGRST202' || cierresError.code === '42883') {
+                throw new Error('Falta instalar sql/011_ventas_reales_y_cierre_conteo.sql en Supabase.');
+            }
+            throw cierresError;
+        }
+        if (cierres?.setup_required) throw new Error('Configura el código de acceso al cuadre desde la cuenta administradora.');
+        if (cierres?.locked) throw new Error('Demasiados intentos. Espera 15 minutos antes de volver a probar.');
+        if (!cierres?.ok) throw new Error('Código incorrecto.');
+        return { ...data, closed_cash: cierres };
     },
 
     configurarPinCuadre: async (pin) => {

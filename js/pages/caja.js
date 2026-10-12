@@ -42,6 +42,10 @@ const renderCuadreResumen = (summary) => {
     const today = summary.today || {};
     const previous = summary.previous_days || {};
     const allTime = summary.all_time || {};
+    const counted = summary.closed_cash || {};
+    const countedToday = counted.today || {};
+    const countedPrevious = counted.previous_days || {};
+    const countedAllTime = counted.all_time || {};
 
     Modal.open({
         title: 'Cuadre de caja',
@@ -76,8 +80,16 @@ const renderCuadreResumen = (summary) => {
                     <strong class="cuadre-summary-total">${amount(summary.expected_cash)}</strong>
                     <span class="text-muted">${Number(summary.open_turns) || 0} turnos abiertos</span>
                 </section>
+                <section class="cuadre-summary-panel cuadre-summary-counted">
+                    <span class="cuadre-summary-label">Efectivo real contado al cierre</span>
+                    <div class="cuadre-counted-grid">
+                        <div><span>Hoy</span><strong>${amount(countedToday.amount)}</strong><small>${Number(countedToday.turns) || 0} cierres con conteo</small></div>
+                        <div><span>Días anteriores</span><strong>${amount(countedPrevious.amount)}</strong><small>${Number(countedPrevious.turns) || 0} cierres con conteo</small></div>
+                        <div><span>Acumulado</span><strong>${amount(countedAllTime.amount)}</strong><small>${Number(countedAllTime.turns) || 0} cierres con conteo</small></div>
+                    </div>
+                </section>
             </div>
-            <p class="cuadre-summary-note">El efectivo esperado suma la apertura, las ventas en efectivo y las entradas, menos las salidas de los turnos que siguen abiertos. Las transferencias y ventas mixtas se muestran aparte.</p>
+            <p class="cuadre-summary-note">El efectivo esperado suma la apertura, las ventas en efectivo y las entradas, menos las salidas de los turnos abiertos. Las ventas y el efectivo contado se muestran por separado. Los cierres anteriores sin conteo guardado no se pueden reconstruir.</p>
         `,
         actions: [{ label: 'Cerrar', class: 'btn-primary', onClick: (event, modal) => modal.close() }]
     });
@@ -354,7 +366,7 @@ const refreshData = async (container) => {
             
             Modal.confirm('Cerrar Caja', `¿Está seguro de cerrar el turno?<br><br>Total Esperado: ${formatCOP(arqueo.expected_total)}<br>Total Real: ${formatCOP(real)}<br>Diferencia: ${formatCOP(diff)}`, async () => {
                 try {
-                    await CajaService.cerrarTurno(currentTurno.id);
+                    await CajaService.cerrarTurno(currentTurno.id, real);
                     Toast.success('Caja cerrada exitosamente');
                     
                     // Show summary modal

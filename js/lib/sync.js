@@ -160,7 +160,16 @@ class SyncManager {
     }
 
     async closeTurno(turnoLocal) {
-        const { error } = await supabase.rpc('cerrar_turno', { p_turno_id: turnoLocal.id });
+        const hasCashCount = turnoLocal.monto_cierre !== null
+            && turnoLocal.monto_cierre !== undefined
+            && Number.isSafeInteger(Number(turnoLocal.monto_cierre))
+            && Number(turnoLocal.monto_cierre) >= 0;
+        const { error } = hasCashCount
+            ? await supabase.rpc('cerrar_turno_con_conteo', {
+                p_turno_id: turnoLocal.id,
+                p_monto_real: Number(turnoLocal.monto_cierre)
+            })
+            : await supabase.rpc('cerrar_turno', { p_turno_id: turnoLocal.id });
         if (error) throw error;
         return true;
     }

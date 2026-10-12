@@ -5,6 +5,9 @@ import { Auth } from '../lib/auth.js';
 export class ReportesPage {
     constructor() {
         this.container = document.getElementById('app-content');
+        this.ventas = [];
+        this.salesPage = 1;
+        this.salesPageSize = 50;
     }
 
     async render() {
@@ -13,7 +16,8 @@ export class ReportesPage {
             return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         this.container.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">Reportes y Dashboard</h1>
@@ -56,6 +60,7 @@ export class ReportesPage {
                         <thead><tr><th>Fecha</th><th>Número</th><th>Método</th><th>Estado</th><th>Total</th></tr></thead>
                         <tbody id="sales-history-body"><tr><td colspan="5">Cargando ventas...</td></tr></tbody>
                     </table>
+                    <div class="pagination" id="sales-history-pagination"></div>
                 </div>
             </div>
         `;
@@ -68,37 +73,64 @@ export class ReportesPage {
         const inicio = document.getElementById('filter-inicio')?.value || new Date().toISOString().split('T')[0];
         const fin = document.getElementById('filter-fin')?.value || new Date().toISOString().split('T')[0];
         
-        const ventas = await reportesService.getHistorialVentas(inicio, fin);
-
-        const historyBody = document.getElementById('sales-history-body');
-        if (historyBody) {
-            historyBody.innerHTML = ventas.length ? ventas.map(venta => `
-                <tr>
-                    <td>${escapeHtml(new Date(venta.fecha).toLocaleString())}</td>
-                    <td>${escapeHtml(venta.numero_venta || '')}</td>
-                    <td>${escapeHtml(venta.metodo_pago || '')}</td>
-                    <td>${escapeHtml(venta.estado || '')}</td>
-                    <td>${formatCOP(venta.total || 0)}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="5">No hay ventas para este rango de fechas.</td></tr>';
-        }
+        this.ventas = await reportesService.getHistorialVentas(inicio, fin);
+        this.salesPage = 1;
+        this.renderSalesHistory();
 
         let resumen = { total_ventas: 0, num_transacciones: 0, ticket_promedio: 0, items_vendidos: 0 };
         try {
-            resumen = await reportesService.getResumenDiario();
+            resumen = await reportesService.getResumenVentas(this.ventas, inicio, fin);
         } catch (error) {
-            console.error('No se pudo cargar el resumen diario:', error);
+            console.error('No se pudo cargar el resumen del rango:', error);
         }
         
         const kpiContainer = document.getElementById('kpi-container');
         if (kpiContainer) {
             kpiContainer.innerHTML = `
-                <div class="card stat-card"><div class="card-body"><div class="stat-label">Total Ventas</div><div class="stat-value">$${resumen.total_ventas}</div></div></div>
+                <div class="card stat-card"><div class="card-body"><div class="stat-label">Total Ventas</div><div class="stat-value">${formatCOP(resumen.total_ventas)}</div></div></div>
                 <div class="card stat-card"><div class="card-body"><div class="stat-label">Transacciones</div><div class="stat-value">${resumen.num_transacciones}</div></div></div>
-                <div class="card stat-card"><div class="card-body"><div class="stat-label">Ticket Promedio</div><div class="stat-value">$${resumen.ticket_promedio}</div></div></div>
+                <div class="card stat-card"><div class="card-body"><div class="stat-label">Ticket Promedio</div><div class="stat-value">${formatCOP(resumen.ticket_promedio)}</div></div></div>
                 <div class="card stat-card"><div class="card-body"><div class="stat-label">Items Vendidos</div><div class="stat-value">${resumen.items_vendidos}</div></div></div>
             `;
         }
+    }
+
+    renderSalesHistory() {
+        const historyBody = document.getElementById('sales-history-body');
+        const pagination = document.getElementById('sales-history-pagination');
+        if (!historyBody || !pagination) return;
+
+        if (!this.ventas.length) {
+            historyBody.innerHTML = '<tr><td colspan="5">No hay ventas para este rango de fechas.</td></tr>';
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(this.ventas.length / this.salesPageSize);
+        const from = (this.salesPage - 1) * this.salesPageSize;
+        historyBody.innerHTML = this.ventas.slice(from, from + this.salesPageSize).map(venta => `
+            <tr>
+                <td>${escapeHtml(new Date(venta.fecha).toLocaleString())}</td>
+                <td>${escapeHtml(venta.numero_venta || '')}</td>
+                <td>${escapeHtml(venta.metodo_pago || '')}</td>
+                <td>${escapeHtml(venta.estado || '')}</td>
+                <td>${formatCOP(venta.total || 0)}</td>
+            </tr>
+        `).join('');
+
+        pagination.innerHTML = `
+            <button type="button" class="page-btn" id="sales-page-previous" ${this.salesPage === 1 ? 'disabled' : ''}>Anterior</button>
+            <span>Página ${this.salesPage} de ${totalPages} · ${this.ventas.length} ventas</span>
+            <button type="button" class="page-btn" id="sales-page-next" ${this.salesPage === totalPages ? 'disabled' : ''}>Siguiente</button>
+        `;
+        document.getElementById('sales-page-previous').addEventListener('click', () => {
+            this.salesPage--;
+            this.renderSalesHistory();
+        });
+        document.getElementById('sales-page-next').addEventListener('click', () => {
+            this.salesPage++;
+            this.renderSalesHistory();
+        });
     }
     
     attachEvents() {

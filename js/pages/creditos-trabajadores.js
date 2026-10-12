@@ -108,7 +108,7 @@ export class CreditosTrabajadoresPage {
       const result = await ProductosService.getAll({ activo: true, pageSize: 1000 });
       this.products = result.data || [];
       select.innerHTML = '<option value="">Selecciona un producto...</option>' + this.products
-        .map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.nombre)} - ${formatCOP(product.precio_venta)}</option>`)
+        .map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.nombre)} - ${formatCOP(product.precio_venta)} · Existencia ${Number(product.stock_actual) || 0}</option>`)
         .join('');
     } catch (error) {
       select.innerHTML = '<option value="">No se pudieron cargar los productos</option>';
@@ -204,13 +204,12 @@ export class CreditosTrabajadoresPage {
         await CreditosTrabajadoresService.create({
           trabajador_nombre: document.getElementById('credito-trabajador').value,
           producto_id: product.id,
-          producto_nombre: product.nombre,
           cantidad: document.getElementById('credito-cantidad').value,
-          precio_unitario: document.getElementById('credito-precio').value,
-          created_by: Auth.getCurrentUser().id
+          precio_unitario: document.getElementById('credito-precio').value
         });
         document.getElementById('modal-credito').style.display = 'none';
         Toast.success('Crédito registrado');
+        await this.loadProducts();
         await this.loadData();
       } catch (error) {
         Toast.error(error.message || 'No se pudo registrar el crédito');
