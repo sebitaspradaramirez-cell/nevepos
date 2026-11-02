@@ -45,8 +45,8 @@ export class ComprasPage {
       </div>
 
       <!-- Modal Form -->
-      <div id="modal-compra" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 900px;">
+      <div id="modal-compra" class="modal" style="display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-content" style="width: 100%; max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: var(--radius-xl); background: var(--color-white); box-shadow: var(--shadow-xl);">
           <h3>Registrar Nueva Compra</h3>
           <div class="row">
             <div class="col-md-6 form-group">
@@ -92,8 +92,8 @@ export class ComprasPage {
       </div>
       
       <!-- Detalle Modal -->
-      <div id="modal-detalle-compra" class="modal" style="display: none;">
-        <div class="modal-content">
+      <div id="modal-detalle-compra" class="modal" style="display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-content" style="width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: var(--radius-xl); background: var(--color-white); box-shadow: var(--shadow-xl);">
           <h3>Detalle de Compra</h3>
           <div id="detalle-content"></div>
           <button type="button" class="btn btn-secondary btn-cancel-detalle mt-3">Cerrar</button>
@@ -137,7 +137,7 @@ export class ComprasPage {
           <td>${formatCOP(c.total)}</td>
           <td><span class="badge ${badge}">${c.estado}</span></td>
           <td>
-            <button class="btn btn-sm btn-info btn-detalle" data-id="\${c.id}">Ver</button>
+            <button class="btn btn-sm btn-info btn-detalle" data-id="${c.id}">Ver</button>
             ${c.estado === 'recibida' ? `<button class="btn btn-sm btn-danger btn-anular" data-id="${c.id}">Anular</button>` : ''}
           </td>
         `;
@@ -290,6 +290,11 @@ export class ComprasPage {
     document.getElementById('modal-detalle-compra').style.display = 'flex';
     try {
       const detalles = await ComprasService.getDetalle(id);
+      if (!detalles || detalles.length === 0) {
+        content.innerHTML = '<p>Esta compra no tiene productos registrados.</p>';
+        return;
+      }
+
       let html = '<table class="table"><thead><tr><th>Producto</th><th>Cant.</th><th>Costo Unit.</th><th>Subtotal</th></tr></thead><tbody>';
       detalles.forEach(d => {
         const prod = d.productos?.nombre || '-';
