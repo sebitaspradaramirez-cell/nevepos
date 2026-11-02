@@ -1,10 +1,28 @@
 import { supabase } from '../lib/supabase.js';
-import { db } from '../lib/db.js';
-import { isOnline } from '../lib/utils.js';
-import { Toast } from '../lib/toast.js';
+import { formatCOP, isOnline } from '../lib/utils.js';
+
+const throwPurchaseMigrationError = (error) => {
+  if (error.code === 'PGRST202' || error.code === '42883' || error.code === '42703') {
+    throw new Error('Falta ejecutar sql/013_compras_afectan_caja.sql en Supabase para habilitar los movimientos de caja de Compras.');
+  }
+  throw error;
+};
+
+const toPurchaseError = (error) => {
+  if (error.code === '23514' && error.message === 'Efectivo insuficiente en la caja seleccionada.') {
+    let details;
+    try {
+      details = JSON.parse(error.details);
+    } catch {
+      throw new Error('Efectivo insuficiente en la caja seleccionada.');
+    }
+    throw new Error(`Efectivo insuficiente. Disponible: ${formatCOP(Number(details.disponible))}; compra: ${formatCOP(Number(details.requerido))}.`);
+  }
+  throwPurchaseMigrationError(error);
+};
 
 export const ComprasService = {
-  async registrar(proveedorId, items, notas) {
+  async registrar(proveedorId, items, notas, turnoCajaId) {
     if (!isOnline()) {
       throw new Error('Debe estar conectado a internet para registrar compras');
     }
@@ -12,20 +30,20 @@ export const ComprasService = {
     if (!items || items.length === 0) {
       throw new Error('La compra debe contener al menos un producto');
     }
+    if (!turnoCajaId) {
+      throw new Error('Selecciona la caja abierta que pagará esta compra');
+    }
 
     try {
-      const { data: compraId, error } = await supabase.rpc('registrar_compra', {
+      const { data, error } = await supabase.rpc('registrar_compra', {
         p_proveedor_id: proveedorId || null,
         p_items: items,
-        p_notas: notas || ''
+        p_notas: notas || '',
+        p_turno_caja_id: turnoCajaId
       });
 
-      if (error) throw error;
-      
-      // Clear product cache to force refresh of new stocks
-      // Could also selectively update them
-      
-      return compraId;
+      if (error) toPurchaseError(error);
+      return data.compra_id;
     } catch (error) {
       console.error('Error registrando compra:', error);
       throw error;
@@ -79,7 +97,7 @@ export const ComprasService = {
         `)
         .eq('compra_id', compraId);
         
-      if (error) throw error;
+      if (error) throwPurchaseMigrationError(error);
       return data;
     } catch (error) {
       console.error('Error fetching purchase details:', error);
@@ -87,51 +105,35 @@ export const ComprasService = {
     }
   },
 
-  async anular(compraId) {
+  async getMovimientoCaja(compraId) {
+    if (!isOnline()) {
+      throw new Error('Esta acción requiere conexión a internet');
+    }
+
+    const { data, error } = await supabase
+      .from('movimientos_caja')
+      .select('id, monto')
+      .eq('compra_id', compraId)
+      .eq('tipo', 'salida')
+      .maybeSingle();
+
+    if (error) throwPurchaseMigrationError(error);
+    return data;
+  },
+
+  async anular(compraId, turnoReembolsoId = null) {
     if (!isOnline()) {
       throw new Error('Esta acción requiere conexión a internet');
     }
 
     try {
-      // NOTE: Normally there should be an RPC for 'anular_compra'
-      // Since it wasn't requested in schema explicitly, we might need to implement logic here or it's a gap.
-      // For now, updating state to anulada. Stock rollback should ideally be handled via RPC.
-      
-      // Quick fallback: manual rollback if RPC doesn't exist
-      const { data: detalles } = await supabase.from('detalle_compras').select('*').eq('compra_id', compraId);
-      const { data: compra } = await supabase.from('compras').select('estado').eq('id', compraId).single();
-      
-      if (compra.estado === 'anulada') throw new Error('La compra ya está anulada');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: usuario } = await supabase.from('usuarios').select('id').eq('auth_user_id', user.id).single();
+      const { data, error } = await supabase.rpc('anular_compra', {
+        p_compra_id: compraId,
+        p_turno_reembolso_id: turnoReembolsoId
+      });
 
-      for (let item of detalles) {
-        const { data: prod } = await supabase.from('productos').select('stock_actual').eq('id', item.producto_id).single();
-        const newStock = prod.stock_actual - item.cantidad;
-        
-        await supabase.from('productos').update({ stock_actual: newStock }).eq('id', item.producto_id);
-        
-        await supabase.from('movimientos_inventario').insert([{
-          producto_id: item.producto_id,
-          usuario_id: usuario.id,
-          tipo: 'salida',
-          cantidad: item.cantidad,
-          stock_anterior: prod.stock_actual,
-          stock_nuevo: newStock,
-          referencia: compraId,
-          notas: 'Anulación de compra'
-        }]);
-      }
-
-      const { error: updateError } = await supabase
-        .from('compras')
-        .update({ estado: 'anulada' })
-        .eq('id', compraId);
-
-      if (updateError) throw updateError;
-      
-      return true;
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error anular compra:', error);
       throw error;

@@ -1,8 +1,10 @@
 import { ComprasService } from '../services/compras.service.js';
 import { ProveedoresService } from '../services/proveedores.service.js';
 import { ProductosService } from '../services/productos.service.js';
+import { CajaService } from '../services/caja.service.js';
 import { Auth } from '../lib/auth.js';
 import { Toast } from '../lib/toast.js';
+import { Modal } from '../components/modal.js';
 import { formatCOP, formatDate } from '../lib/utils.js';
 
 export class ComprasPage {
@@ -49,6 +51,13 @@ export class ComprasPage {
         <div class="modal-content" style="width: 100%; max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: var(--radius-xl); background: var(--color-white); box-shadow: var(--shadow-xl);">
           <h3>Registrar Nueva Compra</h3>
           <div class="row">
+            <div class="col-md-6 form-group">
+              <label for="compra-turno-caja">Pagar desde la caja abierta</label>
+              <select id="compra-turno-caja" class="form-control" required>
+                <option value="">Selecciona una caja abierta</option>
+              </select>
+              <small class="form-text">El total será una salida de efectivo. El monto de apertura y los cierres anteriores no se modifican.</small>
+            </div>
             <div class="col-md-6 form-group">
               <label>Proveedor</label>
               <select id="compra-proveedor" class="form-control"></select>
@@ -154,6 +163,7 @@ export class ComprasPage {
       this.renderCart();
       document.getElementById('compra-notas').value = '';
       document.getElementById('modal-compra').style.display = 'flex';
+      this.loadTurnosCaja();
     });
 
     document.querySelector('.btn-cancel-compra').addEventListener('click', () => {
@@ -196,6 +206,14 @@ export class ComprasPage {
         Toast.error('La compra debe tener al menos un producto');
         return;
       }
+      const turnoCajaId = document.getElementById('compra-turno-caja').value;
+      if (!turnoCajaId) {
+        Toast.error('Selecciona la caja abierta que pagará esta compra');
+        return;
+      }
+
+      const saveButton = document.getElementById('btn-guardar-compra');
+      saveButton.disabled = true;
       const pId = document.getElementById('compra-proveedor').value;
       const notas = document.getElementById('compra-notas').value;
       const items = this.cart.map(c => ({
@@ -204,12 +222,14 @@ export class ComprasPage {
         precio_unitario: c.cost
       }));
       try {
-        await ComprasService.registrar(pId || null, items, notas);
+        await ComprasService.registrar(pId || null, items, notas, turnoCajaId);
         Toast.success('Compra registrada');
         document.getElementById('modal-compra').style.display = 'none';
-        this.loadData();
+        await this.loadData();
       } catch (err) {
-        Toast.error(err.message);
+        Toast.error(err.message || 'No se pudo registrar la compra.');
+      } finally {
+        saveButton.disabled = false;
       }
     });
 
@@ -217,17 +237,86 @@ export class ComprasPage {
       if (e.target.classList.contains('btn-detalle')) {
         this.showDetalle(e.target.dataset.id);
       } else if (e.target.classList.contains('btn-anular')) {
-        if(confirm('¿Seguro que desea anular esta compra? Esto revertirá el stock.')) {
-          try {
-            await ComprasService.anular(e.target.dataset.id);
-            Toast.success('Compra anulada');
-            this.loadData();
-          } catch(err) {
-            Toast.error(err.message);
-          }
-        }
+        this.confirmarAnulacion(e.target.dataset.id);
       }
     });
+  }
+
+  async loadTurnosCaja() {
+    const select = document.getElementById('compra-turno-caja');
+    const saveButton = document.getElementById('btn-guardar-compra');
+    select.disabled = true;
+    saveButton.disabled = true;
+    select.innerHTML = '<option value="">Cargando cajas abiertas...</option>';
+
+    try {
+      const turnos = await CajaService.getTurnosAbiertos();
+      if (turnos.length === 0) {
+        select.innerHTML = '<option value="">No hay cajas abiertas</option>';
+        Toast.error('Abre un turno de caja antes de registrar una compra en efectivo.');
+        return;
+      }
+
+      select.innerHTML = '<option value="">Selecciona una caja abierta</option>' +
+        turnos.map(turno => `<option value="${turno.id}">Caja ${turno.numero_caja} · ${formatDate(turno.apertura, 'datetime')}</option>`).join('');
+      select.disabled = false;
+      saveButton.disabled = false;
+    } catch (error) {
+      select.innerHTML = '<option value="">No se pudieron cargar las cajas</option>';
+      Toast.error(error.message || 'No se pudieron consultar las cajas abiertas.');
+    }
+  }
+
+  async confirmarAnulacion(compraId) {
+    try {
+      const movimientoCaja = await ComprasService.getMovimientoCaja(compraId);
+      const turnos = movimientoCaja ? await CajaService.getTurnosAbiertos() : [];
+      if (movimientoCaja && turnos.length === 0) {
+        Toast.error('Abre una caja para registrar el reembolso antes de anular esta compra.');
+        return;
+      }
+
+      const selector = movimientoCaja
+        ? `<label class="form-label" for="compra-turno-reembolso">Caja que recibe el reembolso (${formatCOP(movimientoCaja.monto)})</label>
+           <select id="compra-turno-reembolso" class="form-control" required>
+             <option value="">Selecciona una caja abierta</option>
+             ${turnos.map(turno => `<option value="${turno.id}">Caja ${turno.numero_caja} · ${formatDate(turno.apertura, 'datetime')}</option>`).join('')}
+           </select>`
+        : '<p>Se revertirá el inventario. Esta compra anterior no tiene un egreso de caja vinculado, por lo que el saldo actual no cambiará.</p>';
+
+      Modal.open({
+        title: 'Anular compra',
+        size: 'md',
+        content: `<p>¿Confirmas anular esta compra y revertir sus existencias?</p>${selector}`,
+        actions: [
+          { label: 'Cancelar', class: 'btn-secondary', onClick: (event, modal) => modal.close() },
+          {
+            label: 'Anular compra',
+            class: 'btn-danger',
+            onClick: async (event, modal) => {
+              const turnoReembolsoId = movimientoCaja
+                ? document.getElementById('compra-turno-reembolso').value
+                : null;
+              if (movimientoCaja && !turnoReembolsoId) {
+                Toast.error('Selecciona la caja que recibirá el reembolso.');
+                return;
+              }
+
+              try {
+                await ComprasService.anular(compraId, turnoReembolsoId);
+                Toast.success('Compra anulada');
+                modal.close();
+                await this.loadData();
+              } catch (error) {
+                Toast.error(error.message || 'No se pudo anular la compra.');
+              }
+            }
+          }
+        ]
+      });
+    } catch (error) {
+      Toast.error(error.message || 'No se pudo preparar la anulación de la compra.');
+    }
   }
 
   addToCart(prod) {

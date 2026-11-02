@@ -91,8 +91,24 @@ export const CajaService = {
             .where('estado').equals('abierto')
             .filter(t => t.usuario_id === usuario.id)
             .toArray();
-            
+
         return turnos.length > 0 ? turnos[0] : null;
+    },
+
+    getTurnosAbiertos: async () => {
+        if (!isOnline()) {
+            throw new Error('Se requiere conexión para consultar las cajas abiertas.');
+        }
+
+        const { data, error } = await supabase
+            .from('turnos_caja')
+            .select('id, numero_caja, apertura')
+            .eq('estado', 'abierto')
+            .order('numero_caja')
+            .order('apertura');
+
+        if (error) throw error;
+        return data || [];
     },
 
     registrarMovimiento: async (turnoId, tipo, monto, concepto) => {
@@ -132,9 +148,26 @@ export const CajaService = {
     },
 
     getMovimientos: async (turnoId) => {
-        return await db.movimientos_caja
+        const localMovimientos = await db.movimientos_caja
             .where('turno_caja_id').equals(turnoId)
             .toArray();
+
+        if (!isOnline()) return localMovimientos;
+
+        const { data, error } = await supabase
+            .from('movimientos_caja')
+            .select('*')
+            .eq('turno_caja_id', turnoId)
+            .order('fecha');
+        if (error) throw error;
+
+        const serverMovimientos = data || [];
+        await db.movimientos_caja.bulkPut(serverMovimientos);
+        const serverIds = new Set(serverMovimientos.map(movimiento => movimiento.id));
+        return [
+            ...serverMovimientos,
+            ...localMovimientos.filter(movimiento => !serverIds.has(movimiento.id))
+        ];
     },
 
     getArqueo: async (turnoId) => {
