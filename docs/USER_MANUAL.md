@@ -5,6 +5,27 @@ NevePOS es el sistema de punto de venta y gestión de inventario diseñado espec
 
 Este manual te guiará paso a paso por las funciones principales del sistema.
 
+## Guía rápida por perfil
+
+En el menú lateral, abre **Guía de uso** para consultar las instrucciones dentro de NevePOS. La guía incluye un apartado para cajeros y otro para administración. Las opciones disponibles dependen de los permisos asignados a cada cuenta.
+
+### Cajeros: ventas y caja
+
+- **Punto de Venta:** busca productos por nombre o código, agrégalos al carrito, cambia cantidades, aplica descuentos y registra el pago en efectivo o por transferencia. Puedes añadir el nombre del cliente y revisar o imprimir el recibo de la venta.
+- **Caja:** abre un turno indicando la caja y el monto inicial; registra entradas y salidas; al cerrar, compara el efectivo contado con el total esperado.
+
+### Administradores: gestión del negocio
+
+- **Productos:** crea, busca, edita o desactiva productos del catálogo.
+- **Inventario:** revisa alertas de stock bajo, registra entradas, salidas o ajustes y consulta el historial de movimientos.
+- **Proveedores:** administra las fichas de proveedores.
+- **Compras:** registra compras asociadas a un proveedor y productos; consulta su historial y detalle.
+- **Reportes:** filtra por fechas, consulta ventas totales, transacciones, ticket promedio y artículos vendidos; revisa las gráficas y exporta o imprime el reporte.
+- **Usuarios:** vincula cuentas existentes, asigna roles, cambia su estado y revisa el último acceso.
+- **Configuración:** actualiza el nombre del negocio en el dispositivo, sincroniza datos, descarga una copia local y configura verificación en dos pasos.
+
+Si un apartado no aparece en el menú, solicita al administrador que revise los permisos de tu cuenta.
+
 ---
 
 ## Iniciar Sesión

@@ -14,7 +14,8 @@ export const Sidebar = {
             { path: '#/reportes', icon: '📈', label: 'Reportes', perm: 'reportes' },
             { path: '#/creditos-trabajadores', icon: '🧾', label: 'Créditos a trabajadores', perm: 'creditos_trabajadores' },
             { path: '#/usuarios', icon: '👤', label: 'Usuarios', perm: 'usuarios' },
-            { path: '#/configuracion', icon: '⚙️', label: 'Configuración', perm: 'configuracion' }
+            { path: '#/configuracion', icon: '⚙️', label: 'Configuración', perm: 'configuracion' },
+            { path: '#/guia', icon: '📘', label: 'Guía de uso', always: true }
         ];
 
         const visibleItems = items.filter(item => item.always || hasPermission(item.perm));

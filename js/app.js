@@ -18,6 +18,7 @@ import { ReportesPage } from './pages/reportes.js';
 import { UsuariosPage } from './pages/usuarios.js';
 import { ConfiguracionPage } from './pages/configuracion.js';
 import { CreditosTrabajadoresPage } from './pages/creditos-trabajadores.js';
+import { GuiaPage } from './pages/guia.js';
 
 class App {
     async init() {
@@ -36,6 +37,7 @@ class App {
         this.router.addRoute('/creditos-trabajadores', CreditosTrabajadoresPage);
         this.router.addRoute('/usuarios', UsuariosPage);
         this.router.addRoute('/configuracion', ConfiguracionPage);
+        this.router.addRoute('/guia', GuiaPage);
         
         // Router middleware
         this.router.beforeEach(async (to) => {

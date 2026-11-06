@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nevepos-v6';
+const CACHE_NAME = 'nevepos-v7';
 const FILES_TO_CACHE = [
   '/',
   '/index.html',
@@ -12,7 +12,9 @@ const FILES_TO_CACHE = [
   '/css/pages/reportes.css',
   '/css/pages/admin.css',
   '/css/pages/caja.css',
+  '/css/pages/guia.css',
   '/js/app.js',
+  '/js/pages/guia.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4',
