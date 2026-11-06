@@ -21,6 +21,7 @@ En el menú lateral, abre **Guía de uso** para consultar las instrucciones dent
 - **Proveedores:** administra las fichas de proveedores.
 - **Compras:** registra compras asociadas a un proveedor y productos; consulta su historial y detalle.
 - **Reportes:** filtra por fechas, consulta ventas totales, transacciones, ticket promedio y artículos vendidos; revisa las gráficas y exporta o imprime el reporte.
+- **Créditos a trabajadores:** registra productos entregados a crédito, consulta saldos y filtra los pendientes o liquidados. Al liquidar un crédito se marca como pagado; el registro no modifica las existencias del inventario.
 - **Usuarios:** vincula cuentas existentes, asigna roles, cambia su estado y revisa el último acceso.
 - **Configuración:** actualiza el nombre del negocio en el dispositivo, sincroniza datos, descarga una copia local y configura verificación en dos pasos.
 

@@ -79,6 +79,18 @@ const adminSections = [
         ]
     },
     {
+        title: 'Créditos a trabajadores',
+        route: '/creditos-trabajadores',
+        icon: '🧾',
+        description: 'Lleva el registro de productos entregados a crédito a trabajadores.',
+        steps: [
+            'Registra el nombre del trabajador, el producto, la cantidad y el precio acordado.',
+            'Revisa los saldos pendientes, los créditos abiertos y el total liquidado.',
+            'Filtra entre créditos pendientes y liquidados; usa Liquidar cuando se pague una deuda.',
+            'El registro de crédito no modifica las existencias del inventario.'
+        ]
+    },
+    {
         title: 'Usuarios',
         route: '/usuarios',
         icon: '👤',
