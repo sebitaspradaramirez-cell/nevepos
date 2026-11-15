@@ -39,13 +39,7 @@ const renderAbrirCaja = () => {
 
 const renderCuadreResumen = (summary) => {
     const amount = value => formatCOP(Number(value) || 0);
-    const today = summary.today || {};
-    const previous = summary.previous_days || {};
-    const allTime = summary.all_time || {};
-    const counted = summary.closed_cash || {};
-    const countedToday = counted.today || {};
-    const countedPrevious = counted.previous_days || {};
-    const countedAllTime = counted.all_time || {};
+    const quantity = value => new Intl.NumberFormat('es-CO').format(Number(value) || 0);
 
     Modal.open({
         title: 'Cuadre de caja',
@@ -53,43 +47,15 @@ const renderCuadreResumen = (summary) => {
         content: `
             <div class="cuadre-summary-grid">
                 <section class="cuadre-summary-panel cuadre-summary-today">
-                    <span class="cuadre-summary-label">Ventas de hoy</span>
-                    <strong class="cuadre-summary-total">${amount(today.total)}</strong>
-                    <dl>
-                        <div><dt>Efectivo</dt><dd>${amount(today.cash)}</dd></div>
-                        <div><dt>Transferencia</dt><dd>${amount(today.transfer)}</dd></div>
-                        <div><dt>Mixtas</dt><dd>${amount(today.mixed)}</dd></div>
-                    </dl>
-                </section>
-                <section class="cuadre-summary-panel cuadre-summary-history">
-                    <span class="cuadre-summary-label">Días anteriores</span>
-                    <strong class="cuadre-summary-total">${amount(previous.total)}</strong>
-                    <dl>
-                        <div><dt>Efectivo</dt><dd>${amount(previous.cash)}</dd></div>
-                        <div><dt>Transferencia</dt><dd>${amount(previous.transfer)}</dd></div>
-                        <div><dt>Mixtas</dt><dd>${amount(previous.mixed)}</dd></div>
-                    </dl>
-                </section>
-                <section class="cuadre-summary-panel cuadre-summary-lifetime">
-                    <span class="cuadre-summary-label">Ventas acumuladas</span>
-                    <strong class="cuadre-summary-total">${amount(allTime.total)}</strong>
-                    <span class="text-muted">Efectivo ${amount(allTime.cash)} · Transferencias ${amount(allTime.transfer)}</span>
-                </section>
                 <section class="cuadre-summary-panel cuadre-summary-expected">
-                    <span class="cuadre-summary-label">Debe haber en cajas abiertas</span>
+                    <span class="cuadre-summary-label">Debe haber en caja</span>
                     <strong class="cuadre-summary-total">${amount(summary.expected_cash)}</strong>
-                    <span class="text-muted">${Number(summary.open_turns) || 0} turnos abiertos</span>
                 </section>
-                <section class="cuadre-summary-panel cuadre-summary-counted">
-                    <span class="cuadre-summary-label">Efectivo real contado al cierre</span>
-                    <div class="cuadre-counted-grid">
-                        <div><span>Hoy</span><strong>${amount(countedToday.amount)}</strong><small>${Number(countedToday.turns) || 0} cierres con conteo</small></div>
-                        <div><span>Días anteriores</span><strong>${amount(countedPrevious.amount)}</strong><small>${Number(countedPrevious.turns) || 0} cierres con conteo</small></div>
-                        <div><span>Acumulado</span><strong>${amount(countedAllTime.amount)}</strong><small>${Number(countedAllTime.turns) || 0} cierres con conteo</small></div>
-                    </div>
+                <section class="cuadre-summary-panel cuadre-summary-suppliers">
+                    <span class="cuadre-summary-label">Pagado a proveedores hoy</span>
+                    <strong class="cuadre-summary-total">${amount(summary.suppliers_paid_today)}</strong>
                 </section>
             </div>
-            <p class="cuadre-summary-note">El efectivo esperado suma la apertura, las ventas en efectivo y las entradas, menos las salidas de los turnos abiertos. Las ventas y el efectivo contado se muestran por separado. Los cierres anteriores sin conteo guardado no se pueden reconstruir.</p>
         `,
         actions: [{ label: 'Cerrar', class: 'btn-primary', onClick: (event, modal) => modal.close() }]
     });

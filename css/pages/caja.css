@@ -7,7 +7,7 @@
 
 .cuadre-summary-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-4);
 }
 
@@ -24,6 +24,7 @@
 }
 
 .cuadre-summary-today { border-top-color: var(--color-info); background: #f0fdff; }
+.cuadre-summary-suppliers { border-top-color: var(--color-success); background: #f0fdf4; }
 .cuadre-summary-history { border-top-color: var(--color-warning); background: #fffbeb; }
 .cuadre-summary-lifetime { border-top-color: var(--color-success); background: #f0fdf4; }
 .cuadre-summary-expected { border-top-color: var(--color-primary); background: #eff6ff; }

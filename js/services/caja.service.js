@@ -222,23 +222,7 @@ export const CajaService = {
             }
             throw error;
         }
-        if (!data?.ok) return data;
-
-        const { data: cierres, error: cierresError } = await supabase.rpc('get_cash_drawer_closed_totals', {
-            p_pin: pin,
-            p_today_start: todayStart,
-            p_today_end: todayEnd
-        });
-        if (cierresError) {
-            if (cierresError.code === 'PGRST202' || cierresError.code === '42883') {
-                throw new Error('Falta instalar sql/011_ventas_reales_y_cierre_conteo.sql en Supabase.');
-            }
-            throw cierresError;
-        }
-        if (cierres?.setup_required) throw new Error('Configura el código de acceso al cuadre desde la cuenta administradora.');
-        if (cierres?.locked) throw new Error('Demasiados intentos. Espera 15 minutos antes de volver a probar.');
-        if (!cierres?.ok) throw new Error('Código incorrecto.');
-        return { ...data, closed_cash: cierres };
+        return data;
     },
 
     configurarPinCuadre: async (pin) => {

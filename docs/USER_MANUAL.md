@@ -73,6 +73,8 @@ El control de caja te ayuda a cuadrar el dinero al final del día.
 2. **Entradas y salidas:** Si sacas dinero para comprar un botellón de agua, regístralo como un egreso. Si entra dinero que no es de ventas, regístralo como un ingreso.
 3. **Cerrar turno:** Al terminar tu turno, ingresa cuánto dinero físico tienes en caja. El sistema te dirá si te falta o te sobra dinero (cuadre de caja).
 
+En **Ver cuadre** puedes consultar los productos vendidos hoy, cuánto efectivo debe haber en las cajas abiertas y cuánto se ha pagado a proveedores hoy.
+
 ---
 
 ## Gestión de Productos (Solo Administradores)
